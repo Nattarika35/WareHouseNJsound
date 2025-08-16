@@ -1,0 +1,447 @@
+﻿/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
+for details on configuring this project to bundle and minify static web assets. */
+
+a.navbar-brand {
+  white-space: normal;
+  text-align: center;
+  word-break: break-all;
+}
+
+ Provide sufficient contrast against white background 
+a {
+  color: #0366d6;
+}
+
+.btn-primary {
+  color: #fff;
+  background-color: #1b6ec2;
+  border-color: #1861ac;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+  color: #fff;
+  background-color: #1b6ec2;
+  border-color: #1861ac;
+}
+
+ Sticky footer styles
+-------------------------------------------------- 
+html {
+  font-size: 14px;
+}
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.border-top {
+  border-top: 1px solid #e5e5e5;
+}
+.border-bottom {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.box-shadow {
+  box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+}
+
+button.accept-policy {
+  font-size: 1rem;
+  line-height: inherit;
+}
+
+ Sticky footer styles
+-------------------------------------------------- 
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+   Margin bottom by footer height 
+  margin-bottom: 60px;
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  white-space: nowrap;
+  line-height: 60px;  Vertically center the text there 
+}
+/*******************************************************************************************************************************************************************************************************/
+
+/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
+for details on configuring this project to bundle and minify static web assets. */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+body {
+    font-family: 'Poppins';
+    margin: 0;
+    box-sizing: border-box;
+    height: 100vh;
+    background: var(--body-color);
+}
+
+:root {
+    --primary-color: #ffc107;
+    --sidebar-color: #ffffff;
+    --text-color: #ffffff;
+    --tran-04: 0.3s ease;
+}
+
+/* Layout */
+.layout {
+    display: flex;
+    margin-top: 60px;
+    min-height: 100vh;
+}
+
+/*Header*/
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background-color: #fff;
+}
+
+.image img {
+    width: 300px;
+    height: 80px;
+}
+
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background-color: white;
+    z-index: 1001;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background-color: #F4871E;
+    z-index: 1; /* ต่ำกว่า sidebar */
+}
+
+.sidebar {
+    position: fixed;
+    top: 0; /* <<< แก้จาก top: 60px เป็น top: 0 */
+    left: 0;
+    width: 220px;
+    height: 100vh;
+    background-color: #000;
+    z-index: 10; /* สูงกว่า top-bar */
+    padding-top: 10px;
+    color: white;
+}
+
+.main-content {
+    margin-top: 60px;
+    margin-left: 220px;
+    padding-top: 60px;
+    padding: 20px;
+    width: calc(100% - 220px);
+    min-height: calc(100vh - 60px);
+    background-color: #ffffff;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+.layout {
+    display: flex;
+}
+
+.sidebar img {
+    max-width: 100%;
+    height: auto;
+}
+
+.menu-links {
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar li {
+    list-style: none;
+    margin: 10px 0;
+}
+
+    .sidebar li a {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        width: 100%;
+        padding: 10px;
+        border-radius: 6px;
+        text-decoration: none;
+        color: var(--text-color);
+        transition: var(--tran-04);
+    }
+
+        .sidebar li a:hover {
+            background-color: #F4871E;
+            color: #fff;
+        }
+
+            .sidebar li a:hover .icon,
+            .sidebar li a:hover .text {
+                color: #fff;
+            }
+
+.icon {
+    margin-right: 10px;
+    font-size: 1.5rem;
+}
+
+
+
+.sidebar li a.active {
+    background-color: #F4871E;
+    color: #000; /* ให้ข้อความและไอคอนอ่านง่ายขึ้น */
+}
+
+    .sidebar li a.active .icon,
+    .sidebar li a.active .text {
+        color: #000;
+    }
+
+
+/* Main content */
+.main-content {
+    width: 85%;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        transform: translateX(-100%);
+        z-index: 1000;
+    }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+    .main-content {
+        width: 100%;
+    }
+}
+
+
+/* Provide sufficient contrast against white background */
+a {
+    color: #003F81;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+    font-size: 14px;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+.border-top {
+    border-top: 1px solid #e5e5e5;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.box-shadow {
+    box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+}
+
+button.accept-policy {
+    font-size: 1rem;
+    line-height: inherit;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    /* Margin bottom by footer height */
+    margin-bottom: 60px;
+}
+
+.footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    white-space: nowrap;
+    line-height: 60px; /* Vertically center the text there */
+}
+
+a.navbar-brand {
+    white-space: normal;
+    text-align: center;
+    word-break: break-all;
+}
+
+/* Provide sufficient contrast against white background */
+a {
+    color: #fff;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+    font-size: 14px;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+.border-top {
+    border-top: 1px solid #e5e5e5;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.box-shadow {
+    box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+}
+
+button.accept-policy {
+    font-size: 1rem;
+    line-height: inherit;
+}
+
+.card-body a {
+    background-color: #F4871E;
+    color: black;
+    border: 1px solid #ffc107;
+}
+
+.btn-yellow:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: black;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    /* Margin bottom by footer height */
+    margin-bottom: 60px;
+}
+
+.footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    white-space: nowrap;
+    line-height: 60px; /* Vertically center the text there */
+}
+
+.gradient-custom {
+    /* fallback for old browsers */
+    background: #6a11cb;
+    /* Chrome 10-25, Safari 5.1-6 */
+    background: -webkit-linear-gradient(to right, rgba(106, 17, 203, 1), rgba(37, 117, 252, 1));
+    /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+    background: linear-gradient(to right, rgba(106, 17, 203, 1), rgba(37, 117, 252, 1))
+}
+
+.simple-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+    .simple-card img {
+        height: 120px;
+        width: 50px;
+        object-fit: contain;
+        margin-bottom: 10px;
+    }
+
+    .simple-card .card-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .simple-card .btn {
+        font-size: 0.8rem;
+        padding: 4px 12px;
+    }
+
+

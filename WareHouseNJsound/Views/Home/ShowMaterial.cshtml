@@ -1,0 +1,185 @@
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@removeTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model IEnumerable<WareHouseNJsound.Models.Materials>
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<html lang="en">
+<head>
+    <!-- สไตล์และ Script ต่างๆ เหมือนเดิม -->
+    <link rel="stylesheet" href="~/lib/sweetalert2-11.10.8/package/dist/sweetalert2.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/boxicons@2.1.4/dist/boxicons.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Domine:wght@598&family=Noto+Sans+Thai:wght@100..900&display=swap" rel="stylesheet">
+
+    <style>
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+            background-color: #111111;
+            color: white;
+        }
+
+        th {
+            background-color: #E6E6E6;
+            color: black;
+        }
+
+        .highlight {
+            background-color: yellow;
+            color: black;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="icon-back d-flex align-items-center justify-content-start" style="margin-bottom: 10px;">
+        <svg class="w-6 h-6 text-gray-800 dark:text-white"
+             aria-hidden="true"
+             onclick="location.href='@Url.Action("Index", "Management")'"
+             xmlns="http://www.w3.org/2000/svg"
+             width="50"
+             height="50"
+             fill="none"
+             viewBox="0 0 24 24"
+             style="cursor: pointer;">
+            <path stroke="#FFB52A" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m17 16-4-4 4-4m-6 8-4-4 4-4" />
+        </svg>
+    </div>
+
+    <h1 style="font-family: 'Noto Sans Thai', sans-serif;">รายการทั้งหมด</h1>
+    <h3 style="font-family: 'Noto Sans Thai', sans-serif;">All Items</h3>
+
+    @{
+        var categories = ViewBag.Categories as List<string> ?? new List<string>();
+        string selectedCategory = ViewBag.SelectedCategory ?? "all";
+    }
+
+    <div class="mb-3 d-flex justify-content-between align-items-center" style="margin-bottom: 20px;">
+        <div class="d-flex align-items-center">
+            <label for="categoryFilter" class="me-2 mb-0 fw-bold">Category:</label>
+            <select id="categoryFilter" class="form-select" style="width: 200px;">
+                <option value="all" @(selectedCategory == "all" ? "selected=\" selected\"" : "" )>All</option>
+
+                @foreach (var cat in categories)
+                {
+                    <option value="@cat.ToLower()" @(selectedCategory == cat.ToLower() ? "selected=\" selected\"" : "" )>@cat</option>
+
+                }
+            </select>
+
+        </div>
+
+        <div>
+            <input type="text" id="searchInput" class="form-control" placeholder="Search..." style="width: 300px;">
+        </div>
+    </div>
+
+    <table class="table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Product ID</th>
+                <th>Picture</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Unit</th>
+                <th>MinimumStock</th>
+                <th>Remark</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                int index = 1;
+            }
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@index</td>
+                    <td>@item.Materials_ID</td>
+                    <td>
+                        
+                    </td>
+                    <td style="text-align: left;">@item.MaterialsName</td>
+
+                    <td>@item.Category.CategoryName</td>
+                    <td>@item.Unit.UnitName</td>
+                    <td>@item.MinimumStock</td>
+                    <td>@item.Description</td>
+                </tr>
+                index++;
+            }
+        </tbody>
+    </table>
+
+    <script>
+    $(document).ready(function () {
+        // กรองตามหมวดหมู่ (เมื่อเลือกเปลี่ยน dropdown)
+        $('#categoryFilter').on('change', function () {
+            var selectedCategory = $(this).val();
+            var url = '@Url.Action("All_Items", "Management")';
+            if (selectedCategory === 'all') {
+                window.location.href = url;
+            } else {
+                window.location.href = url + '?category=' + selectedCategory;
+            }
+        });
+
+        // ฟังก์ชันค้นหาและไฮไลต์คำค้นหา
+        function highlight(text) {
+            if (!text) return;
+            $("table tbody tr").each(function () {
+                $(this).find("td").each(function () {
+                    if ($(this).find("img").length > 0) return;
+
+                    var originalHtml = $(this).html();
+                    var regex = new RegExp(`(${text})`, "gi");
+                    var newHtml = originalHtml.replace(regex, '<span class="highlight">$1</span>');
+                    $(this).html(newHtml);
+                });
+            });
+        }
+
+        function resetHighlight() {
+            $("table tbody tr").each(function () {
+                $(this).find("td").each(function () {
+                    if ($(this).find("img").length > 0) return;
+
+                    var temp = $('<div>').html($(this).html());
+                    temp.find("span.highlight").each(function () {
+                        $(this).replaceWith($(this).text());
+                    });
+                    $(this).html(temp.html());
+                });
+            });
+        }
+
+        $("#searchInput").on("keyup", function () {
+            var value = $(this).val().toLowerCase();
+            resetHighlight();
+            $("table tbody tr").filter(function () {
+                var match = $(this).text().toLowerCase().indexOf(value) > -1;
+                $(this).toggle(match);
+                return match;
+            });
+            highlight(value);
+        });
+    });
+    </script>
+
+</body>
+</html>

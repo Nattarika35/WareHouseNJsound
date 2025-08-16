@@ -1,0 +1,134 @@
+﻿@model WareHouseNJsound.Models.Materials
+@{
+    ViewData["Title"] = "เพิ่มสินค้า";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"]</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Noto Sans Thai', sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .centered-form-container {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .form-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        label.form-label {
+            text-align: left !important;
+            display: block;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="centered-form-container">
+        <form asp-controller="Home" asp-action="AddMaterial" method="post" class="form-box" enctype="multipart/form-data">
+            <h2 class="mb-4 fw-semibold" style="color: #2c3e50;">เพิ่มสินค้าใหม่</h2>
+
+            <div class="mb-3">
+                <label asp-for="Materials_ID" class="form-label fw-semibold text-start">รหัสสินค้า</label>
+                <input asp-for="Materials_ID" class="form-control form-control-lg" placeholder="กรุณากรอกรหัสสินค้า" required />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="MaterialsName" class="form-label fw-semibold text-start">ชื่อสินค้า</label>
+                <input asp-for="MaterialsName" class="form-control form-control-lg" placeholder="กรุณากรอกชื่อสินค้า" required />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Category_ID" class="form-label fw-semibold text-start">หมวดหมู่</label>
+                <select asp-for="Category_ID" class="form-select form-select-lg"
+                        asp-items="@(new SelectList(ViewBag.Categories, "Category_ID", "CategoryName"))" required>
+                    <option value="" disabled selected>-- เลือกหมวดหมู่ --</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Unit_ID" class="form-label fw-semibold text-start">หน่วยนับ</label>
+                <select asp-for="Unit_ID" class="form-select form-select-lg"
+                        asp-items="@(new SelectList(ViewBag.Units, "Unit_ID", "UnitName"))" required>
+                    <option value="" disabled selected>-- เลือกหน่วยนับ --</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="MinimumStock" class="form-label fw-semibold text-start">สต๊อกขั้นต่ำ</label>
+                <input asp-for="MinimumStock" type="number" class="form-control form-control-lg" min="0" placeholder="กรอกจำนวนขั้นต่ำ" required />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label fw-semibold text-start">หมายเหตุ</label>
+                <textarea asp-for="Description" class="form-control" rows="4" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="Picture" class="form-label fw-semibold d-block text-start">รูปภาพสินค้า</label>
+                <input type="file" name="PictureFile" class="form-control" accept="image/*" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-lg flex-grow-1" style="font-weight: 600;">บันทึก</button>
+                <a asp-action="Index" class="btn btn-outline-secondary btn-lg flex-grow-1">ย้อนกลับ</a>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+
+            form.addEventListener("submit", function (e) {
+                const materialsId = form.querySelector('[name="Materials_ID"]').value.trim();
+                const materialsName = form.querySelector('[name="MaterialsName"]').value.trim();
+                const categoryId = form.querySelector('[name="Category_ID"]').value;
+                const unitId = form.querySelector('[name="Unit_ID"]').value;
+                const minimumStock = form.querySelector('[name="MinimumStock"]').value;
+
+                if (!materialsId || !materialsName || !categoryId || !unitId || !minimumStock) {
+                    e.preventDefault();
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'กรอกข้อมูลไม่ครบ!',
+                        text: 'กรุณากรอกข้อมูลให้ครบถ้วนก่อนบันทึก',
+                        confirmButtonText: 'ตกลง'
+                    });
+
+                    return false;
+                }
+            });
+
+            // ป้องกันสต็อกติดลบ
+            const stockInput = document.querySelector('input[name="MinimumStock"]');
+            stockInput.addEventListener("input", function () {
+                if (this.value < 0) {
+                    this.value = 0;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
