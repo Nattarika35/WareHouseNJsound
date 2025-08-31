@@ -33,21 +33,23 @@ namespace WareHouseNJsound.Controllers
 
         public IActionResult Index(string category)
         {
-
             var query = _context.materials
+                .AsNoTracking()
                 .Include(p => p.Unit)
                 .Include(p => p.Category)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(category) && category.ToLower() != "all")
             {
-                query = query.Where(p => p.Category.CategoryName.ToLower() == category.ToLower());
+                // หลีกเลี่ยง ToLower() เพื่อให้ใช้ Index ได้
+                query = query.Where(p => p.Category.CategoryName == category);
             }
 
-            var materials = query.ToList();
-
+            // จำกัดข้อมูลเพื่อป้องกัน timeout
+            var materials = query.Take(200).ToList();
 
             var categories = _context.Categories
+                .AsNoTracking()
                 .Select(c => c.CategoryName)
                 .Distinct()
                 .OrderBy(c => c)
@@ -58,6 +60,7 @@ namespace WareHouseNJsound.Controllers
 
             return View(materials);
         }
+
 
         public IActionResult AddMaterial()
         {

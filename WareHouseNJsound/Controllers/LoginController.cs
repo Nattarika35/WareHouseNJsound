@@ -31,6 +31,19 @@ namespace WareHouseNJsound.Controllers
                 if (employee != null)
                 {
                     HttpContext.Session.SetString("Username", employee.Username);
+                    HttpContext.Session.SetString("FullName", employee.FullName ?? employee.Username);
+                    if (employee.Picture != null && employee.Picture.Length > 0)
+                    {
+                        string base64Image = Convert.ToBase64String(employee.Picture);
+                        string imageSrc = $"data:image/png;base64,{base64Image}"; // หรือ image/jpeg แล้วแต่ไฟล์จริง
+                        HttpContext.Session.SetString("ProfileImage", imageSrc);
+                    }
+                    else
+                    {
+                        HttpContext.Session.SetString("ProfileImage", "/img/user.png");
+                    }
+
+
                     return RedirectToAction("Index", "Home");
                 }
 
@@ -43,5 +56,6 @@ namespace WareHouseNJsound.Controllers
 
             return View();
         }
+
     }
 }

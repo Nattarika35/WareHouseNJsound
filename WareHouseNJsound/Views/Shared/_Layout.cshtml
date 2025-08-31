@@ -16,27 +16,25 @@
 
 </head>
 <body>
-    <div class="top-bar"></div>
+    <div class="top-bar">
+        <div class="d-flex justify-content-end align-items-center px-3" style="height: 60px; ">
+            @{
+                var fullName = HttpContextAccessor.HttpContext.Session.GetString("FullName");
+                var profileImage = HttpContextAccessor.HttpContext.Session.GetString("ProfileImage") ?? "~/img/default-profile.png";
+            }
 
-    @*
-    <!-- ขวา: user info -->
-    <div class="d-flex align-items-center gap-4">
-    <img id="userImage" class="img-circle " style="width: 35px; height: auto;" alt="User Icon">
-    <span class="username">@HttpContextAccessor?.HttpContext?.Session.GetString("_Name")</span>
+            @if (!string.IsNullOrEmpty(fullName))
+            {
+                <div class="d-flex align-items-center">
+                    <span class="me-2">@fullName</span>
+                    <img src="@Url.Content(profileImage)" alt="Profile"
+                         class="rounded-circle" style="width:40px; height:40px; object-fit:cover;" />
+                </div>
+            }
 
-    <button class="btn" onclick="location.href='@Url.Action("Index", "Login")'" style="background: #003F81; color: white;">Logout</button>
+        </div>
+
     </div>
-    *@
-
-    <script>
-        var userId = '@HttpContextAccessor?.HttpContext?.Session.GetString("_UserId")';
-        var userImage = document.getElementById("userImage");
-        if (userId) {
-            userImage.src = "https://bms2.senior-thailand.com/EmployeeImages/" + userId + ".JPG";
-        } else {
-            userImage.src = "~/img/Admin(Gray).png";
-        }
-    </script>
 
     <div class="layout">
         <!-- Sidebar -->
