@@ -198,6 +198,68 @@ namespace WareHouseNJsound.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        public IActionResult Admin()
+        {
+            var employees = _context.Employees
+                .Where(e => e.Role_ID == 201)
+                .ToList();
+
+            return View(employees);
+        }
+
+        // GET: /Account/ChangePassword
+        public IActionResult ChangePassword()
+            {
+            string employeeId = HttpContext.Session.GetString("Employee_ID");
+
+            var employee = _context.Employees.FirstOrDefault(e => e.Employee_ID == employeeId);
+            if (employee == null) return NotFound();
+
+            return View(employee);
+        }
+
+        // POST: /Account/ChangePassword
+        [HttpPost]
+        public IActionResult ChangePassword(string currentPassword, string newPassword, string confirmPassword)
+        {
+            // ดึง Employee จาก session หรือ identity (สมมติใช้ Session)
+            string employeeId = HttpContext.Session.GetString("Employee_ID");
+ 
+
+            var employee = _context.Employees.FirstOrDefault(e => e.Employee_ID == employeeId);
+            if (employee == null)
+            {
+                ViewBag.Message = "ไม่พบข้อมูลพนักงาน";
+                return View();
+            }
+
+            if (newPassword != confirmPassword)
+            {
+                ViewBag.Message = "รหัสผ่านใหม่ไม่ตรงกัน";
+                return View();
+            }
+
+            if (employee.Password != currentPassword) // ถ้าเก็บ hashed ต้องเปลี่ยนเป็นตรวจสอบ hash
+            {
+                ViewBag.Message = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
+                return View();
+            }
+
+            // เปลี่ยนรหัสผ่าน
+            employee.Password = newPassword;
+            _context.SaveChanges();
+
+            ViewBag.Message = "เปลี่ยนรหัสผ่านสำเร็จ!";
+            return View();
+        }
+        public IActionResult Employee()
+        {
+            var employees = _context.Employees
+                .Where(e => e.Role_ID == 202)
+                .ToList();
+
+            return View(employees);
+        }
 
         public IActionResult Privacy()
         {

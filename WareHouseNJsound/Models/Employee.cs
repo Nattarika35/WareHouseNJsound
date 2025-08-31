@@ -9,6 +9,7 @@ namespace WareHouseNJsound.Models
     {
         [Key]
         public string Employee_ID { get; set; }
+        public byte[] Picture { get; set; }
         public string Username { get; set; }
         public string Password { get; set; }
         public string Emp_Fname { get; set; }
@@ -20,5 +21,13 @@ namespace WareHouseNJsound.Models
         public int? Gender_ID { get; set; }
         public int? Role_ID { get; set; }
         public string Personal_ID { get; set; }
+        [NotMapped]
+        public string FullName
+        {
+            get
+            {
+                return Emp_Fname + " " + Emp_Lname;
+            }
+        }
     }
 }

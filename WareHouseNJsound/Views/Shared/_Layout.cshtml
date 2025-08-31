@@ -75,16 +75,16 @@
 
 
 
-                    <li id="Admin" class="nav-link" @* onclick="location.href='@Url.Action("MyApproval", "Request")'" *@>
-                        <a asp-action="MyApproval" asp-controller="Request" class="@(currentController == "Request" && currentAction == "MyApproval" ? "active" : "")">
+                    <li id="Admin" class="nav-link" onclick="location.href='@Url.Action("Admin", "Home")'">
+                        <a asp-action="Admin" asp-controller="Home" class="@(currentController == "Home" && currentAction == "Admin" ? "active" : "")">
                             <i class='icon bx bxs-user'></i></i><span class="text nav-text">ผู้ใช้งาน</span>
                         </a>
                     </li>
 
 
 
-                    <li id="Employee" class="nav-link" @* onclick="location.href='@Url.Action("PendingRequest", "Request")'" *@>
-                        <a asp-action="PendingRequest" asp-controller="Request" class="@(currentController == "Request" && currentAction == "PendingRequest" ? "active" : "")">
+                    <li id="Employee" class="nav-link" onclick="location.href='@Url.Action("Employee", "Home")'">
+                        <a asp-action="Employee" asp-controller="Home" class="@(currentController == "Home" && currentAction == "Employee" ? "active" : "")">
                             <i class='icon bx bxs-user-badge'></i></i><span class="text nav-text">พนักงาน</span>
                         </a>
                     </li>
