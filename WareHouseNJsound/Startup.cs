@@ -27,7 +27,16 @@ namespace WareHouseNJsound
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddDbContext<CoreContext>(options =>
-                options.UseSqlServer(Configuration.GetConnectionString("WarehouseAndStockConnection")));
+                options.UseSqlServer(
+                    Configuration.GetConnectionString("WarehouseAndStockConnection"),
+                        sqlOptions =>
+                        {
+                            sqlOptions.CommandTimeout(180); // 180 วินาที = 3 นาที
+                        }
+                    )
+                );
+
+
             services.AddControllersWithViews();
             services.AddSession();
             services.AddHttpContextAccessor();

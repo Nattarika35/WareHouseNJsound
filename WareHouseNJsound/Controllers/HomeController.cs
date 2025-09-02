@@ -46,7 +46,7 @@ namespace WareHouseNJsound.Controllers
             }
 
             // จำกัดข้อมูลเพื่อป้องกัน timeout
-            var materials = query.Take(200).ToList();
+            var materials = query.ToList();
 
             var categories = _context.Categories
                 .AsNoTracking()

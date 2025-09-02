@@ -13,5 +13,9 @@ namespace WareHouseNJsound.Data
         public DbSet<Materials> materials { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Unit> Units { get; set; }
+        public DbSet<Request> Requests { get; set; }
+        public DbSet<RequestDetail> RequestDetails { get; set; }
+        public DbSet<Jobs> Jobs { get; set; }
+
     }
 }
