@@ -1,0 +1,176 @@
+﻿@model IEnumerable<WareHouseNJsound.Models.Request>
+@{
+    ViewData["Title"] = "Request";
+    //Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<html lang="en">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/boxicons@2.1.4/dist/boxicons.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Domine:wght@598&family=Noto+Sans+Thai:wght@100..900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        .btn-submit {
+            background: #003F81;
+            color: #fff;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            box-shadow: 5px 5px 5px #eee;
+            text-shadow: none;
+        }
+
+        .btn-submit:hover {
+            background: #C1C1C1;
+            color: #fff;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            box-shadow: 5px 5px 5px #eee;
+            text-shadow: none;
+        }
+
+        /* Custom DataTable Styling */
+
+        .dataTables_length label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'Noto Sans Thai', sans-serif;
+            font-size: 14px;
+        }
+
+        .dataTables_wrapper .dataTables_filter input {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter {
+            margin-bottom: 15px;
+        }
+
+        .table thead th {
+            background-color: #E57F1C !important;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            vertical-align: middle;
+            border: 1px solid #E57F1C1;
+        }
+
+        .table tbody td {
+            border: 1px solid #E57F1C;
+            vertical-align: middle;
+        }
+
+        .status-label {
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+            display: inline-block;
+            min-width: 80px;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="container-fluid" style="margin-right: 0px; padding: 20px;">
+        <input id="empID" name="empID" type="hidden" />
+        <div class="icon-back d-flex align-items-center justify-content-start"></div>
+
+        <h2 style="font-family: 'Noto Sans Thai', sans-serif; margin-bottom: 10px;">คำร้องขอ</h2>
+
+        <div class="table-responsive">
+            <table class="table table-bordered" id="tblMyRequest" style="font-size: 12px; font-weight: 400;">
+                <thead>
+                    <tr>
+                        <th>RequestNumber</th>
+                        <th>Employee</th>
+                        @* <th>Parts</th>
+                        <th>Quanlity</th> *@
+                        <th>Request Date</th>
+                        @* <th>Status</th> *@
+                    </tr>
+                </thead>
+                <tbody>
+
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td style="text-align: center;">
+                                <a href="@Url.Action("Edit", "Request", new { requestId = item.Request_ID })" class="text-decoration-none text-primary">
+                                    @item.RequestNumber
+                                </a>
+                            </td>
+                            <td style="text-align: center;">@item.Employees.FullName</td>
+                            <td style="text-align: center;">
+                                @item.Request_Date.ToString("dd/MM/yyyy HH:mm:ss")
+                            </td>
+
+
+                           @*  <td style="text-align: center;">
+                                <span class="status-label" style="background-color: @item.Workflow.Status.Color; color: @item.Workflow.Status.FontColor;">
+                                    @item.Workflow.Status.Statusname
+                                </span>
+                            </td> *@
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+
+            $('#tblMyRequest').DataTable({
+                "language": {
+                    "lengthMenu": "Show _MENU_ entries",
+                    "zeroRecords": "ไม่พบข้อมูลที่ค้นหา",
+                    "info": "Showing _START_ to _END_ of _TOTAL_ entries",
+                    "infoEmpty": "Showing 0 to 0 of 0 entries",
+                    "infoFiltered": "(filtered from _MAX_ total entries)",
+                    "search": "Search:",
+                    "paginate": {
+                        "first": "First",
+                        "last": "Last",
+                        "next": "Next",
+                        "previous": "Previous"
+                    }
+                },
+                "pageLength": 10,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                "order": [[0, "desc"]],
+                "columnDefs": [
+                    { "orderable": false, "targets": [4] },
+                    { "searchable": true, "targets": [0, 1, 2, 3, 4] }
+                ],
+                "responsive": true,
+                "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                "processing": false,
+                "serverSide": false
+            });
+
+
+
+        });
+    </script>
+</body>
+</html>

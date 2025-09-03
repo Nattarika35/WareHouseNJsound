@@ -187,6 +187,23 @@ namespace WareHouseNJsound.Controllers
             }
         }
 
+        public async Task<IActionResult> PendingRequets()
+        {
+            try
+            {
+                var requests = await _context.Requests
+                    .Include(x => x.Employees)
+                    .Include(x => x.Workflows)
+                        .ThenInclude(w => w.Status)
+                    .ToListAsync();
+                return View(requests);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return View(new List<Request>());
 
+            }
+        }
     }
 }
