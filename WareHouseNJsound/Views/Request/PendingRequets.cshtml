@@ -97,7 +97,7 @@
                 <thead>
                     <tr>
                         <th>RequestNumber</th>
-                        <th>Employee</th>
+                       @*  <th>Employee</th> *@
                         @* <th>Parts</th>
                         <th>Quanlity</th> *@
                         <th>Request Date</th>
@@ -114,11 +114,10 @@
                                     @item.RequestNumber
                                 </a>
                             </td>
-                            <td style="text-align: center;">@item.Employees.FullName</td>
+                            @* <td style="text-align: center;">@item.Employees.FullName</td> *@
                             <td style="text-align: center;">
                                 @item.Request_Date.ToString("dd/MM/yyyy HH:mm:ss")
                             </td>
-
 
                            @*  <td style="text-align: center;">
                                 <span class="status-label" style="background-color: @item.Workflow.Status.Color; color: @item.Workflow.Status.FontColor;">
@@ -159,8 +158,8 @@
                 "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
                 "order": [[0, "desc"]],
                 "columnDefs": [
-                    { "orderable": false, "targets": [4] },
-                    { "searchable": true, "targets": [0, 1, 2, 3, 4] }
+                    { "orderable": false, "targets": [1] },   // คอลัมน์ Request Date
+                    { "searchable": true, "targets": [0, 1] } // RequestNumber + Request Date
                 ],
                 "responsive": true,
                 "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',

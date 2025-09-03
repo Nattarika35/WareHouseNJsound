@@ -70,6 +70,11 @@
                             <i class='icon bx bx-mail-send'></i><span class="text nav-text">เบิกสินค้า</span>
                         </a>
                     </li>
+                    <li id="Requests" class="nav-link" onclick="location.href='@Url.Action("PendingRequets", "Request")'">
+                        <a href="#" class="@(currentController == "Request" && currentAction == "PendingRequets" ? "active" : "")">
+                            <span class="text nav-text d-block text-end">คำร้องขอ</span>
+                        </a>
+                    </li>
 
 
 

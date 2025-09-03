@@ -192,9 +192,9 @@ namespace WareHouseNJsound.Controllers
             try
             {
                 var requests = await _context.Requests
-                    .Include(x => x.Employees)
-                    .Include(x => x.Workflows)
-                        .ThenInclude(w => w.Status)
+                    //.Include(x => x.Employees)
+                    //.Include(x => x.Workflows)
+                    //    .ThenInclude(w => w.Status)
                     .ToListAsync();
                 return View(requests);
             }
