@@ -309,19 +309,25 @@
     }
 });
 
-$(document).ready(function() {
-    var success = '@ViewBag.Success' === 'True';
-    var requestNumber = '@ViewBag.RequestNumber';
+        $(document).ready(function () {
+            var success = '@ViewBag.Success' === 'True';
+            var requestNumber = '@ViewBag.RequestNumber';
 
-    if(success && requestNumber) {
-        Swal.fire({
-            icon: 'success',
-            title: 'บันทึกสำเร็จ!',
-            text: 'เลขรหัสการเบิกของคุณคือ: ' + requestNumber,
-            confirmButtonText: 'ตกลง'
+            if (success && requestNumber) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกสำเร็จ!',
+                    text: 'เลขรหัสการเบิกของคุณคือ: ' + requestNumber,
+                    confirmButtonText: 'ตกลง'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // redirect ไปที่ PendingRequets ใน RequestController
+                        window.location.href = '@Url.Action("PendingRequets", "Request")';
+                    }
+                });
+            }
         });
-    }
-});
+
 
 
 </script>
