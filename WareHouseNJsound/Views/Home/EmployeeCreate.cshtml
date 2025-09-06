@@ -28,7 +28,11 @@
                         <span asp-validation-for="PictureFile" class="text-danger"></span>
                     </div>
 
-                    
+                    <div class="mb-3">
+                        <label asp-for="Employee_ID" class="d-flex text-end  form-label">รหัสพนักงาน</label>
+                        <input asp-for="Employee_ID" class="form-control" placeholder="เช่น E-252" />
+                        <span asp-validation-for="Employee_ID" class="text-danger"></span>
+                    </div>
                     @* ถ้ามี ViewBag.Roles แล้วอยากให้เลือกสิทธิ์ ก็เพิ่ม select ได้
                     <div class="mb-3">
                     <label asp-for="Role_ID" class="form-label">สิทธิ์</label>

@@ -368,7 +368,6 @@ namespace WareHouseNJsound.Controllers
             return View(emp);
         }
 
-        // POST: /Home/AdminEdit/{id}
         [HttpPost]
         public async Task<IActionResult> AdminEdit(string id, Employee model, bool RemovePicture = false)
         {
@@ -444,41 +443,41 @@ namespace WareHouseNJsound.Controllers
         [HttpPost]
         public async Task<IActionResult> EmployeeCreate(Employee model)
         {
-            // ตรวจ username ซ้ำ
-            var usernameTaken = await _context.Employees
-                .AnyAsync(e => e.Username == model.Username);
-            if (usernameTaken)
-                ModelState.AddModelError(nameof(WareHouseNJsound.Models.Employee.Username), "Username นี้ถูกใช้งานแล้ว");
+            
 
-            // ยืนยันรหัสผ่าน
-            if (!string.IsNullOrWhiteSpace(model.Password) &&
-                model.Password != model.ConfirmPassword)
-                ModelState.AddModelError(nameof(WareHouseNJsound.Models.Employee.ConfirmPassword), "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
-
-            if (!ModelState.IsValid)
-            {
-                await PopulateEmployeeDropdowns();
-                return View(model);
-            }
-
-            // แปลงรูป -> byte[]
+            byte[] pictureBytes = null;
             if (model.PictureFile != null && model.PictureFile.Length > 0)
             {
-                using var ms = new MemoryStream();
-                await model.PictureFile.CopyToAsync(ms);
-                model.Picture = ms.ToArray();
+                using (var ms = new MemoryStream())
+                {
+                    await model.PictureFile.CopyToAsync(ms);
+                    pictureBytes = ms.ToArray();
+                }
             }
 
-            // Gen Employee_ID ถ้ายังว่าง
-            if (string.IsNullOrWhiteSpace(model.Employee_ID))
-                model.Employee_ID = await GenerateEmployeeIdAsync();
-
+         
             // กำหนดสิทธิ์เป็นพนักงาน (ถ้าอยากให้เลือกได้ คอมเมนต์บรรทัดนี้)
             model.Role_ID = 202;
 
             // TODO: โปรดเปลี่ยนเป็นการ Hash Password ในโปรดักชัน
-
-            _context.Employees.Add(model);
+            var emp = new Employee
+            {
+                Employee_ID = model.Employee_ID,
+                Picture = pictureBytes,
+                Username = model.Username,
+                // *** ควร Hash Password จริงจังในโปรดักชั่น ***
+                Password = model.Password,
+                Emp_Fname = model.Emp_Fname,
+                Emp_Lname = model.Emp_Lname,
+                Emp_Tel = model.Emp_Tel,
+                Email = model.Email,
+                Address = model.Address,
+                Brithdate = model.Brithdate,
+                Gender_ID = model.Gender_ID,
+                Role_ID = 202, // 201 = Admin
+                Personal_ID = model.Personal_ID
+            };
+            _context.Employees.Add(emp);
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = $"เพิ่มพนักงาน {model.FullName} เรียบร้อย";
@@ -511,6 +510,63 @@ namespace WareHouseNJsound.Controllers
             }).DefaultIfEmpty(0).Max();
 
             return $"E-{max + 1}";
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EmployeeEdit(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest();
+
+            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Employee_ID == id);
+            if (emp == null) return NotFound();
+
+            await PopulateEmployeeDropdowns(); // โหลดเพศ
+            return View(emp);
+        }
+
+        // POST: /Home/EmployeeEdit/{id}
+        [HttpPost]
+        public async Task<IActionResult> EmployeeEdit(string id, Employee model, bool RemovePicture = false)
+        {
+            if (string.IsNullOrWhiteSpace(id) || id != model.Employee_ID) return BadRequest();
+
+       
+            
+
+            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Employee_ID == id);
+            if (emp == null) return NotFound();
+
+            // อัปเดตฟิลด์
+            emp.Username = model.Username;
+            if (!string.IsNullOrWhiteSpace(model.Password))
+            {
+                emp.Password = model.Password; // TODO: โปรดเปลี่ยนเป็น Hash ในโปรดักชัน
+            }
+            emp.Emp_Fname = model.Emp_Fname;
+            emp.Emp_Lname = model.Emp_Lname;
+            emp.Emp_Tel = model.Emp_Tel;
+            emp.Email = model.Email;
+            emp.Address = model.Address;
+            emp.Brithdate = model.Brithdate;
+            emp.Gender_ID = model.Gender_ID;
+            // ถ้ามี Role_ID ให้แก้ด้วยตามต้องการ (เช่น คง 202 เป็นพนักงาน)
+
+            // รูปภาพ
+            if (RemovePicture)
+            {
+                emp.Picture = null;
+            }
+            else if (model.PictureFile != null && model.PictureFile.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await model.PictureFile.CopyToAsync(ms);
+                emp.Picture = ms.ToArray();
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"อัปเดตข้อมูลพนักงาน {emp.FullName} สำเร็จ";
+            return RedirectToAction(nameof(Employee));   // ไปหน้า list นี้
+
         }
 
 

@@ -1,0 +1,191 @@
+﻿@model WareHouseNJsound.Models.Employee
+@{
+    ViewData["Title"] = "แก้ไขพนักงาน";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<style>
+        .avatar {
+            border-radius: 50%;
+            overflow: hidden;
+            display: inline-block
+        }
+
+            .avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block
+            }
+
+        .avatar-130 {
+            width: 130px;
+            height: 130px
+        }
+
+</style>
+</head>
+
+<body>
+<div class="container py-4">
+    <h3 class="fw-bold mb-3">แก้ไขพนักงาน</h3>
+
+    <div class="card p-4">
+        <form asp-action="EmployeeEdit" asp-controller="Home" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Employee_ID" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    @{
+                        var hasPic = Model.Picture != null && Model.Picture.Length > 0;
+                        var currentSrc = hasPic
+                        ? $"data:image/jpeg;base64,{Convert.ToBase64String(Model.Picture)}"
+                        : Url.Content("~/img/default-profile.png");
+                    }
+                    <div class="mb-2">รูปโปรไฟล์ปัจจุบัน</div>
+                    <div class="text-center mb-3">
+                        <div class="avatar avatar-130">
+                            <img id="previewImg" src="@currentSrc" alt="preview" data-original="@currentSrc" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                            <label asp-for="PictureFile" class="d-flex text-end form-label">เปลี่ยนรูปโปรไฟล์</label>
+                        <input asp-for="PictureFile" id="PictureFile" type="file" class="form-control" accept="image/*" />
+                        <span asp-validation-for="PictureFile" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="RemovePicture" name="RemovePicture" />
+                        <label class="form-check-label" for="RemovePicture">ลบรูปโปรไฟล์</label>
+                    </div>
+
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="row g-3">
+                        
+                        <div class="col-md-6">
+                            <label asp-for="Emp_Fname" class="d-flex text-end form-label">ชื่อ</label>
+                            <input asp-for="Emp_Fname" class="form-control" />
+                            <span asp-validation-for="Emp_Fname" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                                <label asp-for="Emp_Lname" class="d-flex text-end form-label">นามสกุล</label>
+                            <input asp-for="Emp_Lname" class="form-control" />
+                            <span asp-validation-for="Emp_Lname" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Emp_Tel" class="d-flex text-end form-label">เบอร์โทร</label>
+                            <input asp-for="Emp_Tel" class="form-control" />
+                            <span asp-validation-for="Emp_Tel" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                                <label asp-for="Email" class="d-flex text-end form-label"></label>
+                            <input asp-for="Email" class="form-control" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label asp-for="Address" class="d-flex text-end form-label">ที่อยู่</label>
+                            <textarea asp-for="Address" rows="2" class="form-control"></textarea>
+                            <span asp-validation-for="Address" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                                <label asp-for="Brithdate" class="d-flex text-end form-label">วันเกิด</label>
+                            <input asp-for="Brithdate" type="date" class="form-control" />
+                            <span asp-validation-for="Brithdate" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                                <label asp-for="Gender_ID" class="d-flex text-end form-label">เพศ</label>
+                            <select asp-for="Gender_ID" class="form-select" asp-items="ViewBag.Genders">
+                                <option value="">-- เลือก --</option>
+                            </select>
+                            <span asp-validation-for="Gender_ID" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a asp-action="Employee" asp-controller="Home" class="btn btn-outline-secondary">ยกเลิก</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> บันทึกการเปลี่ยนแปลง
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        (function () {
+            var message = @Html.Raw(
+            TempData["SuccessMessage"] != null
+            ? System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])
+            : "null"
+            );
+            if (message) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ',
+                    text: message,
+                    confirmButtonColor: '#F4871E'
+                });
+            }
+        })();
+
+            // พรีวิวรูป + จัดการลบ/ยกเลิกลบ
+            const input = document.getElementById('PictureFile');
+            const remove = document.getElementById('RemovePicture');
+            const img = document.getElementById('previewImg');
+            const origSrc = img?.getAttribute('data-original');
+            const DEFAULT_SRC = '@Url.Content("~/img/default-profile.png")';
+            const MAX_MB = 2;
+
+            input?.addEventListener('change', e => {
+                const f = e.target.files?.[0];
+                if (!f) {
+                    // ถ้าไม่ได้เลือกไฟล์ ให้คืนภาพตามสถานะ Remove
+                    img.src = remove?.checked ? DEFAULT_SRC : (origSrc ?? DEFAULT_SRC);
+                    return;
+                }
+                if (!f.type.startsWith('image/')) {
+                    Swal.fire('ไฟล์ไม่ถูกต้อง', 'โปรดเลือกไฟล์รูปภาพเท่านั้น', 'error');
+                    e.target.value = ''; return;
+                }
+                if (f.size > MAX_MB * 1024 * 1024) {
+                    Swal.fire('ไฟล์ใหญ่เกินไป', `ขนาดสูงสุด ${MAX_MB} MB`, 'error');
+                    e.target.value = ''; return;
+                }
+                remove.checked = false; // มีไฟล์ใหม่แล้ว ยกเลิกลบ
+                const reader = new FileReader();
+                reader.onload = ev => img.src = ev.target.result;
+                reader.readAsDataURL(f);
+            });
+
+            remove?.addEventListener('change', e => {
+                if (e.target.checked) {
+                    img.src = DEFAULT_SRC;
+                    if (input) input.value = '';
+                } else {
+                    if (!input?.files?.length) img.src = origSrc ?? DEFAULT_SRC;
+                }
+            });
+    </script>
+}
+</body>
+</html>
