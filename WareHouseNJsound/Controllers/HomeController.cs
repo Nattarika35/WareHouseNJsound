@@ -569,7 +569,30 @@ namespace WareHouseNJsound.Controllers
 
         }
 
+        [HttpPost]
+        public async Task<IActionResult> EmployeeDelete(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return BadRequest(new { ok = false, message = "ไม่พบรหัสพนักงาน" });
 
+            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Employee_ID == id);
+            if (emp == null)
+                return NotFound(new { ok = false, message = "ไม่พบข้อมูลพนักงาน" });
+
+            // ถ้าอยากกันไม่ให้ลบแอดมิน:
+            // if (emp.Role_ID == 201) return StatusCode(403, new { ok=false, message="ไม่อนุญาตให้ลบแอดมิน" });
+
+            _context.Employees.Remove(emp);
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Json(new { ok = true, message = $"ลบ {emp.FullName} สำเร็จ" });
+            }
+            catch (DbUpdateException)
+            {
+                return StatusCode(409, new { ok = false, message = "ลบไม่ได้: มีข้อมูลอื่นอ้างอิงอยู่" });
+            }
+        }
 
         public IActionResult Privacy()
         {

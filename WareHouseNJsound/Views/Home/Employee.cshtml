@@ -18,6 +18,36 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Domine:wght@598&family=Noto+Sans+Thai:wght@100..900&display=swap" rel="stylesheet" />
+    <style>
+        /* Avatar วงกลมขนาด 60px */
+        .avatar {
+            border-radius: 50%;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+            .avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover; /* ครอบให้เต็มวง */
+                display: block;
+            }
+
+        .avatar-60 {
+            width: 60px;
+            height: 60px;
+        }
+
+        .highlight {
+            background-color: yellow;
+            color: black;
+            font-weight: bold;
+        }
+
+        body {
+            font-family: sans-serif !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -55,7 +85,7 @@
                 {
                     <tr>
                         <td>@item.Employee_ID</td>
-                        <td>
+                        <td class="avatar avatar-60">
                             @if (item.Picture != null && item.Picture.Length > 0)
                             {
                                 var base64 = Convert.ToBase64String(item.Picture);
@@ -124,6 +154,139 @@
                     });
                 }
             })();
+
+            (function () {
+                // เด้งแจ้งเตือนสำเร็จหลัง redirect (ของเดิม)
+                var message = @Html.Raw(
+                TempData["SuccessMessage"] != null
+                ? System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])
+                : "null"
+                );
+                if (message) {
+                    Swal.fire({ icon: 'success', title: 'สำเร็จ', text: message, confirmButtonColor: '#F4871E' });
+                }
+
+                // ---- ลบพนักงานแบบ AJAX ----
+                const token = document.querySelector('#__af input[name="__RequestVerificationToken"]')?.value;
+
+                document.querySelectorAll('.btn-delete').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const id = this.getAttribute('data-id');
+                        const row = this.closest('tr');
+                        Swal.fire({
+                            title: 'ยืนยันการลบ?',
+                            text: `คุณต้องการลบพนักงานรหัส ${id} ใช่หรือไม่`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'ลบ',
+                            cancelButtonText: 'ยกเลิก',
+                            confirmButtonColor: '#d33'
+                        }).then(result => {
+                            if (!result.isConfirmed) return;
+
+                            fetch('@Url.Action("EmployeeDelete", "Home")', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                    'RequestVerificationToken': token // anti-forgery
+                                },
+                                body: new URLSearchParams({ id })
+                            })
+                                .then(async res => {
+                                    const data = await res.json().catch(() => ({}));
+                                    if (!res.ok || !data.ok) throw new Error(data.message || 'ลบไม่สำเร็จ');
+                                    return data;
+                                })
+                                .then(data => {
+                                    // เอาแถวออกจากตาราง
+                                    row.style.opacity = '0.3';
+                                    setTimeout(() => row.remove(), 200);
+                                    Swal.fire({ icon: 'success', title: 'สำเร็จ', text: data.message, timer: 1500, showConfirmButton: false });
+                                })
+                                .catch(err => {
+                                    Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.message || 'ไม่สามารถลบได้' });
+                                });
+                        });
+                    });
+                });
+            })();
+            $(function () {
+                // ----- กรองตามหมวดหมู่ -----
+                $('#categoryFilter').on('change', function () {
+                    var selectedCategory = $(this).val();
+                    var url = '@Url.Action("All_Items", "Management")';
+                    window.location.href = selectedCategory === 'all' ? url : (url + '?category=' + selectedCategory);
+                });
+
+                const $rows = $('#employeeTable tbody tr'); // ปรับให้ตรง id ตารางของคุณ
+
+                function clearHighlights(rootEl) {
+                    $(rootEl).find('mark.search-hl').each(function () {
+                        this.replaceWith(document.createTextNode(this.textContent));
+                    });
+                    // รวม text nodes ที่ติดกันให้เรียบ
+                    if (rootEl.nodeType === 1 && rootEl.normalize) rootEl.normalize();
+                }
+
+                // หุ้มเฉพาะ text nodes ที่ตรงกับคำค้น
+                function highlightNode(rootEl, q) {
+                    if (!q) return;
+                    const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+                        acceptNode(node) {
+                            const t = node.nodeValue;
+                            if (!t || !t.trim()) return NodeFilter.FILTER_REJECT;
+                            const p = node.parentNode && node.parentNode.nodeName;
+                            if (p === 'SCRIPT' || p === 'STYLE') return NodeFilter.FILTER_REJECT;
+                            return NodeFilter.FILTER_ACCEPT;
+                        }
+                    });
+                    const nodes = [];
+                    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+                    nodes.forEach(node => {
+                        const text = node.nodeValue;
+                        const lower = text.toLowerCase();
+                        const qlen = q.length;
+                        let start = 0, idx = lower.indexOf(q);
+                        if (idx === -1) return;
+
+                        const frag = document.createDocumentFragment();
+                        while (idx !== -1) {
+                            frag.appendChild(document.createTextNode(text.slice(start, idx)));
+                            const mark = document.createElement('mark');
+                            mark.className = 'search-hl';
+                            mark.textContent = text.substr(idx, qlen);
+                            frag.appendChild(mark);
+                            start = idx + qlen;
+                            idx = lower.indexOf(q, start);
+                        }
+                        frag.appendChild(document.createTextNode(text.slice(start)));
+                        node.parentNode.replaceChild(frag, node);
+                    });
+                }
+
+                // เล็กน้อย: debounce กันกระตุก
+                let timer = null;
+                $('#searchInput').on('input', function () {
+                    clearTimeout(timer);
+                    timer = setTimeout(() => {
+                        const q = this.value.trim().toLowerCase();
+                        $rows.each(function () {
+                            clearHighlights(this);
+                            if (!q) { this.style.display = ''; return; }
+                            const match = this.textContent.toLowerCase().includes(q);
+                            this.style.display = match ? '' : 'none';
+                            if (match) highlightNode(this, q);
+                        });
+                    }, 120);
+                });
+
+                // SweetAlert จาก TempData (ของเดิมใช้ต่อได้)
+                var message = @Html.Raw(TempData["SuccessMessage"] != null
+                ? System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])
+                : "null");
+                if (message) Swal.fire({ icon: 'success', title: 'สำเร็จ', text: message, confirmButtonText: 'ตกลง' });
+            });
         </script>
     }
 
