@@ -355,6 +355,87 @@ namespace WareHouseNJsound.Controllers
             ViewBag.Genders = new SelectList(genders, "Gender_ID", "GenderName");
         }
 
+        [HttpGet]
+        public async Task<IActionResult> AdminEdit(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest();
+
+            var emp = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Employee_ID == id && e.Role_ID == 201); // 201 = Admin
+            if (emp == null) return NotFound();
+
+            await PopulateDropdowns();
+            return View(emp);
+        }
+
+        // POST: /Home/AdminEdit/{id}
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdminEdit(string id, Employee model, bool RemovePicture = false)
+        {
+            if (string.IsNullOrWhiteSpace(id) || id != model.Employee_ID) return BadRequest();
+
+            // ตรวจ username ซ้ำ (ยกเว้นของตัวเอง)
+            var usernameTaken = await _context.Employees
+                .AnyAsync(e => e.Username == model.Username && e.Employee_ID != id);
+            if (usernameTaken)
+            {
+                // ✅ แก้ตรงนี้
+                ModelState.AddModelError("Username", "Username นี้ถูกใช้งานแล้ว");
+                // หรือ: ModelState.AddModelError("Username", "Username นี้ถูกใช้งานแล้ว");
+            }
+
+            // เช็ครหัสผ่าน (ถ้ากรอกมา จะต้องตรงกับ Confirm)
+            if (!string.IsNullOrWhiteSpace(model.Password) &&
+                model.Password != model.ConfirmPassword)
+            {
+                ModelState.AddModelError("ConfirmPassword", "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                await PopulateDropdowns();
+                return View(model);
+            }
+
+            var emp = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Employee_ID == id && e.Role_ID == 201);
+            if (emp == null) return NotFound();
+
+            // อัปเดตฟิลด์
+            emp.Username = model.Username;
+            if (!string.IsNullOrWhiteSpace(model.Password))
+                emp.Password = model.Password; // โปรดเปลี่ยนเป็น Hash ในโปรดักชัน
+
+            emp.Emp_Fname = model.Emp_Fname;
+            emp.Emp_Lname = model.Emp_Lname;
+            emp.Emp_Tel = model.Emp_Tel;
+            emp.Email = model.Email;
+            emp.Address = model.Address;
+            emp.Brithdate = model.Brithdate;
+            emp.Gender_ID = model.Gender_ID;
+            emp.Role_ID = 201; // คงเป็นแอดมิน
+
+            // รูปภาพ
+            if (RemovePicture)
+            {
+                emp.Picture = null;
+            }
+            else if (model.PictureFile != null && model.PictureFile.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await model.PictureFile.CopyToAsync(ms);
+                emp.Picture = ms.ToArray();
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["AdminUpdateSuccess"] = $"อัปเดตข้อมูลแอดมิน {emp.FullName} เรียบร้อย";
+            return RedirectToAction(nameof(Admin));
+        }
+
+
+
         public IActionResult Privacy()
         {
             return View();
