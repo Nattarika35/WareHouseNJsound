@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -21,6 +22,9 @@ namespace WareHouseNJsound.Models
         public int? Gender_ID { get; set; }
         public int? Role_ID { get; set; }
         public string Personal_ID { get; set; }
+
+        [NotMapped] public IFormFile PictureFile { get; set; }
+        [NotMapped] public string ConfirmPassword { get; set; }
         [NotMapped]
         public string FullName
         {
@@ -29,5 +33,11 @@ namespace WareHouseNJsound.Models
                 return Emp_Fname + " " + Emp_Lname;
             }
         }
+
+        [ForeignKey(nameof(Role_ID))]
+        public virtual Role Role { get; set; }
+
+        [ForeignKey(nameof(Gender_ID))]
+        public virtual Gender Gender { get; set; }
     }
 }

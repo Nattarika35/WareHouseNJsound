@@ -25,7 +25,7 @@
         <h3 style="font-family: 'Noto Sans Thai', sans-serif;">Admin</h3>
 
         <div class="mb-3 d-flex justify-content-between align-items-center" style="margin-bottom: 20px;">
-            <a asp-controller="" asp-action="" class="btn btn-success" style="font-family: 'Noto Sans Thai', sans-serif;">
+            <a asp-controller="Home" asp-action="AdminCreate" class="btn btn-success" style="font-family: 'Noto Sans Thai', sans-serif;">
                 <i class="bx bx-plus"></i> เพิ่ม Admin
             </a>
 
@@ -65,10 +65,7 @@
                     </td>
                     <td>
                         @item.Username <br />
-                            <a href="@Url.Action("ChangePassword", "Home")"
-                               class="btn btn-outline-warning mt-2">
-                                เปลี่ยนรหัสผ่าน
-                            </a>
+                            
                     </td>
                     <td>
                         ชื่อ: @item.FullName <br />
@@ -90,7 +87,9 @@
                     </td>
                     <td>
                         <a href="#" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                        <a href="#" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></a>
+                            <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="@item.Employee_ID">
+                                <i class="bi bi-trash"></i>
+                            </button>
                     </td>
                 </tr>
             }
@@ -99,3 +98,41 @@
 </div>
 </body>
 </html>
+<script>
+    $(document).on("click", ".btn-delete", function () {
+        const id = $(this).data("id");
+
+        Swal.fire({
+            title: 'ยืนยันการลบ?',
+            text: "คุณต้องการลบ Admin นี้ใช่หรือไม่",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'ใช่, ลบเลย',
+            cancelButtonText: 'ยกเลิก'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '@Url.Action("DeleteAdmin", "Home")',
+                    type: 'POST',
+                    data: { id: id },
+                    success: function (res) {
+                        if (res.success) {
+                            Swal.fire('ลบแล้ว!', 'ลบข้อมูลเรียบร้อยแล้ว', 'success')
+                                .then(() => {
+                                    location.reload();
+                                });
+                        } else {
+                            Swal.fire('ผิดพลาด', 'ไม่สามารถลบข้อมูลได้', 'error');
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('ผิดพลาด', 'เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+                    }
+                });
+            }
+        });
+    });
+</script>
+

@@ -1,0 +1,222 @@
+﻿@model WareHouseNJsound.Models.Employee
+@{
+    ViewData["Title"] = "เพิ่มแอดมิน";
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body {
+        font-family: 'Noto Sans Thai', sans-serif;
+    }
+
+    .card {
+        border: 1px solid #eee;
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(0,0,0,.06);
+    }
+
+    .form-label {
+        font-weight: 600;
+    }
+
+    .avatar-preview {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px dashed #ffc107;
+        display: block;
+        margin: 0 auto 8px auto;
+        background: #fff;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #333;
+        border-left: 6px solid #F4871E;
+        padding-left: .6rem;
+        margin: 1rem 0 .75rem 0;
+    }
+
+    .btn-primary {
+        background: #F4871E;
+        border-color: #F4871E;
+    }
+
+        .btn-primary:hover {
+            filter: brightness(.95);
+        }
+</style>
+
+<div class="container py-4">
+    <h2 class="text-center mb-1 fw-bold">เพิ่มผู้ดูแลระบบ (Admin)</h2>
+    <p class="text-center text-muted mb-4">กรอกข้อมูลสำหรับสร้างบัญชีแอดมินใหม่</p>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card p-4">
+                <form asp-action="AdminCreate" asp-controller="Home" method="post" enctype="multipart/form-data" novalidate>
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+                    <div class="row g-4">
+                        <!-- ซ้าย: รูป + account -->
+                        <div class="col-lg-4">
+                            <div class="section-title">โปรไฟล์</div>
+                            <img id="previewImg" class="avatar-preview" src="~/img/default-profile.png" alt="preview">
+
+                            <div class="mb-3">
+                                <label asp-for="PictureFile" class="d-flex text-end  form-label">อัปโหลดรูปโปรไฟล์</label>
+                                <input asp-for="PictureFile" class="form-control" accept="image/*" />
+                                <span asp-validation-for="PictureFile" class="text-danger"></span>
+                            </div>
+
+                            <div class="section-title">บัญชีผู้ใช้</div>
+
+                            <div class="mb-3">
+                                <label asp-for="Employee_ID" class="d-flex text-end  form-label">รหัสพนักงาน</label>
+                                <input asp-for="Employee_ID" class="form-control" placeholder="เช่น E-252" />
+                                <span asp-validation-for="Employee_ID" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Username" class="d-flex text-end  form-label">ชื่อผู้ใช้</label>
+                                <input asp-for="Username" class="form-control" placeholder="เช่น admin01" />
+                                <span asp-validation-for="Username" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Password" class="d-flex text-end  form-label">รหัสผ่าน</label>
+                                <div class="input-group">
+                                    <input asp-for="Password" class="form-control" id="pwd" />
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePwd('pwd')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="Password" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="ConfirmPassword" class="d-flex text-end  form-label">ยืนยันรหัสผ่าน</label>
+                                <div class="input-group">
+                                    <input asp-for="ConfirmPassword" class="form-control" id="cpwd" />
+                                    <button type="button" class="btn btn-outline-secondary" onclick="togglePwd('cpwd')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                            </div>
+
+                            <div class="alert alert-warning small">
+                                บัญชีนี้จะถูกสร้างในสิทธิ์ <strong>Admin</strong> อัตโนมัติ
+                            </div>
+                        </div>
+
+                        <!-- ขวา: ข้อมูลส่วนตัว -->
+                        <div class="col-lg-8">
+                            <div class="section-title">ข้อมูลส่วนตัว</div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="Emp_Fname" class="d-flex text-end form-label">ชื่อ</label>
+                                    <input asp-for="Emp_Fname" class="form-control" placeholder="ชื่อ" />
+                                    <span asp-validation-for="Emp_Fname" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Emp_Lname" class="d-flex text-end form-label">นามสกุล</label>
+                                    <input asp-for="Emp_Lname" class="form-control" placeholder="นามสกุล" />
+                                    <span asp-validation-for="Emp_Lname" class="text-danger"></span>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label asp-for="Emp_Tel" class="d-flex text-end form-label">เบอร์โทร</label>
+                                    <input asp-for="Emp_Tel" class="form-control" placeholder="เช่น 0812345678" />
+                                    <span asp-validation-for="Emp_Tel" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Email" class="d-flex text-end form-label"></label>
+                                    <input asp-for="Email" class="form-control" placeholder="name@example.com" />
+                                    <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label asp-for="Address" class="d-flex text-end form-label">ที่อยู่</label>
+                                    <textarea asp-for="Address" class="form-control" rows="2" placeholder="บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด"></textarea>
+                                    <span asp-validation-for="Address" class="text-danger"></span>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label asp-for="Brithdate" class="d-flex text-end form-label">วันเกิด</label>
+                                    <input asp-for="Brithdate" type="date" class="form-control" />
+                                    <span asp-validation-for="Brithdate" class="text-danger"></span>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label asp-for="Gender_ID" class="d-flex text-end form-label">เพศ</label>
+                                    <select asp-for="Gender_ID" class="form-select" asp-items="ViewBag.Genders">
+                                        <option value="">-- เลือก --</option>
+                                    </select>
+                                    <span asp-validation-for="Gender_ID" class="text-danger"></span>
+                                </div>
+
+
+                                <div class="col-md-6">
+                                    <label asp-for="Personal_ID" class="d-flex text-end form-label">เลขบัตรประชาชน</label>
+                                    <input asp-for="Personal_ID" class="form-control" placeholder="เลขบัตรประชาชน" />
+                                    <span asp-validation-for="Personal_ID" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <a asp-action="Admin" asp-controller="Home" class="btn btn-outline-secondary">
+                                    ย้อนกลับ
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save"></i> บันทึกแอดมิน
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Preview รูปโปรไฟล์
+        document.querySelector('input[name="PictureFile"]')?.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (ev) {
+                const img = document.getElementById('previewImg');
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // toggle password visibility
+        function togglePwd(id) {
+            const el = document.getElementById(id);
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
+        const msg = '@(TempData["AdminCreateSuccess"] ?? "")';
+        if (msg) {
+            Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ',
+                text: msg,
+                confirmButtonColor: '#F4871E'
+            });
+        }
+    </script>
+}

@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using WareHouseNJsound.Data;
 using WareHouseNJsound.Models;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace WareHouseNJsound.Controllers
 {
@@ -210,6 +211,22 @@ namespace WareHouseNJsound.Controllers
             return View(employees);
         }
 
+        [HttpPost]
+        public IActionResult DeleteAdmin(string id)
+        {
+            var employee = _context.Employees.FirstOrDefault(e => e.Employee_ID == id && e.Role_ID == 201);
+            if (employee == null)
+            {
+                return NotFound();
+            }
+
+            _context.Employees.Remove(employee);
+            _context.SaveChanges();
+
+            return Json(new { success = true });
+        }
+
+
         // GET: /Account/ChangePassword
         public IActionResult ChangePassword()
             {
@@ -262,6 +279,80 @@ namespace WareHouseNJsound.Controllers
                 .ToList();
 
             return View(employees);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> AdminCreate()
+        {
+            await PopulateDropdowns();
+            return View(new Employee { Role_ID = 201 });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AdminCreate(Employee vm)
+        {
+            if (!ModelState.IsValid)
+            {
+                await PopulateDropdowns(); // กลับไปหน้าเดิม ให้ dropdown ยังมีค่า
+                return View(vm);
+            }
+
+            // เช็คซ้ำ username
+            var exists = await _context.Employees
+                .AnyAsync(e => e.Username == vm.Username);
+            if (exists)
+            {
+                ModelState.AddModelError(nameof(vm.Username), "Username นี้ถูกใช้งานแล้ว");
+                return View(vm);
+            }
+
+            // แปลงรูปเป็น byte[]
+            byte[] pictureBytes = null;
+            if (vm.PictureFile != null && vm.PictureFile.Length > 0)
+            {
+                using (var ms = new MemoryStream())
+                {
+                    await vm.PictureFile.CopyToAsync(ms);
+                    pictureBytes = ms.ToArray();
+                }
+            }
+
+
+
+            var emp = new Employee
+            {
+                Employee_ID = vm.Employee_ID,
+                Picture = pictureBytes,
+                Username = vm.Username,
+                // *** ควร Hash Password จริงจังในโปรดักชั่น ***
+                Password = vm.Password,
+                Emp_Fname = vm.Emp_Fname,
+                Emp_Lname = vm.Emp_Lname,
+                Emp_Tel = vm.Emp_Tel,
+                Email = vm.Email,
+                Address = vm.Address,
+                Brithdate = vm.Brithdate,
+                Gender_ID = vm.Gender_ID,
+                Role_ID = 201, // 201 = Admin
+                Personal_ID = vm.Personal_ID
+            };
+
+            _context.Employees.Add(emp);
+            await _context.SaveChangesAsync();
+
+            // ส่ง TempData ไปแสดง SweetAlert ที่หน้า Admin()
+            TempData["AdminCreateSuccess"] = $"เพิ่มแอดมิน {emp.Emp_Fname} {emp.Emp_Lname} เรียบร้อย";
+            return RedirectToAction(nameof(Admin));
+        }
+
+        private async Task PopulateDropdowns()
+        {
+            var genders = await _context.genders
+                .AsNoTracking()
+                .OrderBy(g => g.Gender_ID)
+                .ToListAsync();
+
+            ViewBag.Genders = new SelectList(genders, "Gender_ID", "GenderName");
         }
 
         public IActionResult Privacy()

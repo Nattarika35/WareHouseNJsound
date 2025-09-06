@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
 namespace WareHouseNJsound.Models
 {
@@ -9,6 +10,7 @@ namespace WareHouseNJsound.Models
         [Key]
         public int Role_ID { get; set; }
         public string RoleName { get; set; }
-        public string Description { get; set; }
+
+        public virtual ICollection<Employee> Employees { get; set; } = new List<Employee>();
     }
 }
