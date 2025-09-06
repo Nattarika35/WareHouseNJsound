@@ -370,7 +370,6 @@ namespace WareHouseNJsound.Controllers
 
         // POST: /Home/AdminEdit/{id}
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AdminEdit(string id, Employee model, bool RemovePicture = false)
         {
             if (string.IsNullOrWhiteSpace(id) || id != model.Employee_ID) return BadRequest();
@@ -432,6 +431,86 @@ namespace WareHouseNJsound.Controllers
 
             TempData["AdminUpdateSuccess"] = $"อัปเดตข้อมูลแอดมิน {emp.FullName} เรียบร้อย";
             return RedirectToAction(nameof(Admin));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EmployeeCreate()
+        {
+            await PopulateEmployeeDropdowns(); // โหลดเพศ
+            return View(new Employee { Role_ID = 202 }); // 202 = พนักงาน
+        }
+
+        // POST: /Home/EmployeeCreate
+        [HttpPost]
+        public async Task<IActionResult> EmployeeCreate(Employee model)
+        {
+            // ตรวจ username ซ้ำ
+            var usernameTaken = await _context.Employees
+                .AnyAsync(e => e.Username == model.Username);
+            if (usernameTaken)
+                ModelState.AddModelError(nameof(WareHouseNJsound.Models.Employee.Username), "Username นี้ถูกใช้งานแล้ว");
+
+            // ยืนยันรหัสผ่าน
+            if (!string.IsNullOrWhiteSpace(model.Password) &&
+                model.Password != model.ConfirmPassword)
+                ModelState.AddModelError(nameof(WareHouseNJsound.Models.Employee.ConfirmPassword), "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
+
+            if (!ModelState.IsValid)
+            {
+                await PopulateEmployeeDropdowns();
+                return View(model);
+            }
+
+            // แปลงรูป -> byte[]
+            if (model.PictureFile != null && model.PictureFile.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await model.PictureFile.CopyToAsync(ms);
+                model.Picture = ms.ToArray();
+            }
+
+            // Gen Employee_ID ถ้ายังว่าง
+            if (string.IsNullOrWhiteSpace(model.Employee_ID))
+                model.Employee_ID = await GenerateEmployeeIdAsync();
+
+            // กำหนดสิทธิ์เป็นพนักงาน (ถ้าอยากให้เลือกได้ คอมเมนต์บรรทัดนี้)
+            model.Role_ID = 202;
+
+            // TODO: โปรดเปลี่ยนเป็นการ Hash Password ในโปรดักชัน
+
+            _context.Employees.Add(model);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"เพิ่มพนักงาน {model.FullName} เรียบร้อย";
+            return RedirectToAction(nameof(Employee)); // ไปหน้ารายการพนักงาน
+        }
+
+        private async Task PopulateEmployeeDropdowns()
+        {
+            var genders = await _context.genders
+                .AsNoTracking()
+                .OrderBy(g => g.Gender_ID)
+                .ToListAsync();
+
+            ViewBag.Genders = new SelectList(genders, "Gender_ID", "GenderName");
+        }
+
+        // ถ้ายังไม่มี helper นี้ ให้ใส่ไว้
+        private async Task<string> GenerateEmployeeIdAsync()
+        {
+            var ids = await _context.Employees
+                .Select(e => e.Employee_ID)
+                .ToListAsync();
+
+            // รูปแบบ E-### (ปรับตามแพทเทิร์นของคุณได้)
+            var max = ids.Select(id =>
+            {
+                if (string.IsNullOrWhiteSpace(id)) return 0;
+                var s = id.StartsWith("E-") ? id.Substring(2) : id;
+                return int.TryParse(s, out var n) ? n : 0;
+            }).DefaultIfEmpty(0).Max();
+
+            return $"E-{max + 1}";
         }
 
 
