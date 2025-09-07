@@ -107,6 +107,7 @@ namespace WareHouseNJsound.Controllers
             model.Request.Request_Date = DateTime.Now;
             string guidPart = Guid.NewGuid().ToString("N").Substring(0, 2).ToUpper();
             model.Request.RequestNumber = $"REQ-{DateTime.Now:yyyyMMdd}{guidPart}";
+            model.Request.Status_ID = 301;
 
             _context.Requests.Add(model.Request);
             await _context.SaveChangesAsync();
@@ -180,7 +181,7 @@ namespace WareHouseNJsound.Controllers
             try
             {
                 var requests = await _context.Requests
-                    //.Include(x => x.Employees)
+                    .Include(x => x.Status)
                     //.Include(x => x.Workflows)
                     //    .ThenInclude(w => w.Status)
                     .ToListAsync();
@@ -193,5 +194,55 @@ namespace WareHouseNJsound.Controllers
 
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> Edit(Guid requestId)
+        {
+            var req = await _context.Requests
+                .Include(r => r.Employee) // ถ้า navigation ชื่อ Employee ให้เปลี่ยนเป็น .Include(r => r.Employee)
+                .Include(r => r.RequestDetails).ThenInclude(d => d.Materials)
+                .Include(r => r.RequestDetails).ThenInclude(d => d.Unit)
+                .Include(r => r.RequestDetails).ThenInclude(d => d.Jobs)
+                .FirstOrDefaultAsync(r => r.Request_ID == requestId);
+
+            if (req == null) return NotFound();
+
+            return View(req); // ส่ง Entity ตรง ๆ (มี navigation ครบ)
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateStatus(Guid requestId, string decision, string rejectReason)
+        {
+            var req = await _context.Requests.FirstOrDefaultAsync(r => r.Request_ID == requestId);
+            if (req == null) return NotFound();
+
+            // 👉 ปรับส่วนนี้ให้ตรง schema ของคุณ
+            // ตัวอย่างที่ 1: ถ้าใน Request มีฟิลด์ Status_ID (int)
+            // 1 = Pending, 2 = Approved, 3 = Rejected (ตัวเลขเป็นเพียงตัวอย่าง)
+            if (decision == "approve")
+            {
+                // req.Status_ID = 2;
+                // ถ้ามีฟิลด์อื่นประกอบ เช่น ApprovedBy / ApprovedDate ก็เซ็ตที่นี่
+            }
+            else if (decision == "reject")
+            {
+                // req.Status_ID = 3;
+                // ถ้ามีฟิลด์ Reason/Remark เก็บสาเหตุ ให้บันทึก rejectReason
+                // req.RejectReason = rejectReason;
+            }
+
+            // ตัวอย่างที่ 2: ถ้าคุณใช้ Workflow/Status แยกตาราง
+            // ให้ไปเพิ่มแถว Workflow ใหม่ หรืออัปเดต CurrentStatus ตามระบบของคุณแทน
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = decision == "approve"
+                ? "อนุมัติคำร้องเรียบร้อย"
+                : "ปฏิเสธคำร้องเรียบร้อย";
+            TempData["RequestNumber"] = req.RequestNumber;
+
+            return RedirectToAction("PendingRequets", "Request");
+        }
+
     }
 }

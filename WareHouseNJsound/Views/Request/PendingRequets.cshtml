@@ -101,7 +101,7 @@
                         @* <th>Parts</th>
                         <th>Quanlity</th> *@
                         <th>Request Date</th>
-                        @* <th>Status</th> *@
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -119,11 +119,13 @@
                                 @item.Request_Date.ToString("dd/MM/yyyy HH:mm:ss")
                             </td>
 
-                           @*  <td style="text-align: center;">
-                                <span class="status-label" style="background-color: @item.Workflow.Status.Color; color: @item.Workflow.Status.FontColor;">
-                                    @item.Workflow.Status.Statusname
+                            <td style="text-align: center;">
+                                <span class="status-label"
+                                      style="background-color:@(item.Status?.Color ?? "#6c757d"); color:#000;">
+                                    @item.Status?.StatusName
                                 </span>
-                            </td> *@
+
+                            </td>
                         </tr>
                     }
                 </tbody>

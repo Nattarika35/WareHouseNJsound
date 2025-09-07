@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -39,5 +40,7 @@ namespace WareHouseNJsound.Models
 
         [ForeignKey(nameof(Gender_ID))]
         public virtual Gender Gender { get; set; }
+
+        public virtual ICollection<Request> Requests { get; set; } = new List<Request>();
     }
 }

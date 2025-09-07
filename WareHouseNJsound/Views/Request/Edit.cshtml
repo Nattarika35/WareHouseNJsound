@@ -1,0 +1,121 @@
+﻿@model WareHouseNJsound.Models.Request
+@{
+    ViewData["Title"] = "รายละเอียดใบเบิก";
+}
+
+<div class="container py-3">
+    <div class="mb-3">
+        <a class="btn btn-outline-secondary d-flex justify-content-start" asp-action="PendingRequets" asp-controller="Request">ย้อนกลับ</a>
+        <h2 class="d-flex justify-content-center " style="font-family: 'Noto Sans Thai', sans-serif; margin-bottom: 10px;">รายละเอียดคำร้องขอ</h2>
+        
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div><strong>เลขที่คำร้อง:</strong> @Model.RequestNumber</div>
+                    <div><strong>วันที่คำร้อง:</strong> @Model.Request_Date.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div class="col-md-6">
+                    <div><strong>ผู้ยื่นคำร้อง:</strong> @Model.Employee?.FullName</div>
+                    <div><strong>รหัสพนักงาน:</strong> @Model.Employee_ID</div>
+                </div>
+                @* <div class="col-md-4">
+                    ถ้ามีสถานะปัจจุบัน แสดงตรงนี้
+                    <div><strong>สถานะ:</strong> @Model.Status?.Statusname</div>
+                </div> *@
+            </div>
+        </div>
+    </div>
+
+    <h5 class="mb-2">รายการอะไหล่</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+            <thead class="table-secondary text-center">
+                <tr>
+                    <th style="width:5%;">ลำดับ</th>
+                    <th>อะไหล่</th>
+                    <th style="width:12%;">จำนวน</th>
+                    <th style="width:15%;">หน่วย</th>
+                    <th style="width:20%;">งาน</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{
+                    var i = 1;
+                }
+                @foreach (var d in Model.RequestDetails.OrderBy(x => x.Materials?.MaterialsName))
+                {
+                    <tr>
+                        <td class="text-center">@i</td>
+                        <td>@d.Materials?.MaterialsName (@d.Materials_ID)</td>
+                        <td class="text-center">@d.Quantity</td>
+                        <td class="text-center">@d.Unit?.UnitName</td>
+                        <td>@d.Jobs?.JobsName</td>
+                    </tr>
+                    i++;
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-end  gap-2 mt-3">
+        <form asp-action="UpdateStatus" asp-controller="Request" method="post" class="approve-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="requestId" value="@Model.Request_ID" />
+            <input type="hidden" name="decision" value="approve" />
+            <button type="submit" class="btn btn-success">
+                อนุมัติ
+            </button>
+        </form>
+
+        <form asp-action="UpdateStatus" asp-controller="Request" method="post" class="reject-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="requestId" value="@Model.Request_ID" />
+            <input type="hidden" name="decision" value="reject" />
+            <input type="hidden" name="rejectReason" id="rejectReason" />
+            <button type="submit" class="btn btn-danger">
+                ปฏิเสธ
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // ยืนยันก่อนอนุมัติ
+        document.querySelector('.approve-form')?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'question',
+                title: 'ยืนยันอนุมัติ?',
+                confirmButtonText: 'ยืนยัน',
+                cancelButtonText: 'ยกเลิก',
+                showCancelButton: true
+            }).then(r => {
+                if (r.isConfirmed) e.target.submit();
+            });
+        });
+
+        // ยืนยันก่อนปฏิเสธ + ขอเหตุผล (ถ้าต้องการ)
+        document.querySelector('.reject-form')?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'ปฏิเสธคำร้อง',
+                input: 'text',
+                inputLabel: 'เหตุผล (ถ้ามี)',
+                inputPlaceholder: 'กรอกเหตุผล',
+                showCancelButton: true,
+                confirmButtonText: 'ปฏิเสธ',
+                cancelButtonText: 'ยกเลิก',
+                preConfirm: (val) => {
+                    document.getElementById('rejectReason').value = val || '';
+                }
+            }).then(r => {
+                if (r.isConfirmed) e.target.submit();
+            });
+        });
+    </script>
+}
