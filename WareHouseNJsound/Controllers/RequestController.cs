@@ -11,6 +11,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Threading.Tasks;
+using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
 
 namespace WareHouseNJsound.Controllers
 {
@@ -358,7 +360,43 @@ namespace WareHouseNJsound.Controllers
                 ViewBag.Notifications = new List<Notification>();
             }
         }
+        public IActionResult Dashboard()
+        {
+            return View();
+        }
 
+        public async Task<IActionResult> TopMaterialsChart(
+            [Range(1, 50)] int top = 5,
+            DateTime? start = null,   // รับช่วงวันที่ (ไม่บังคับ)
+            DateTime? end = null
+        )
+        {
+            var q = _context.RequestDetails
+                .AsNoTracking()
+                .Include(d => d.Materials)
+                .Include(d => d.Request)
+                .Where(d => d.Request != null && d.Request.Status_ID == 302) // เฉพาะที่เสร็จสิ้น
+                .Where(d => d.Materials != null && d.Materials.MaterialsName != null);
 
+            // กรองช่วงวันที่ ถ้าส่งมา (สมมติใช้วันที่ของใบคำร้อง)
+            if (start.HasValue)
+                q = q.Where(d => d.Request.Request_Date >= start.Value.Date);
+            if (end.HasValue)
+                q = q.Where(d => d.Request.Request_Date < end.Value.Date.AddDays(1)); // รวมทั้งวัน
+
+            var data = await q
+                .GroupBy(d => d.Materials.MaterialsName)
+                .Select(g => new
+                {
+                    MaterialName = g.Key,
+                    TotalQty = g.Sum(x => x.Quantity)
+                })
+                .OrderByDescending(x => x.TotalQty)
+                .Take(top)
+                .ToListAsync();
+
+            var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            return new JsonResult(data, opts);
+        }
     }
 }

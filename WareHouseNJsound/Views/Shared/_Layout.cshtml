@@ -106,8 +106,8 @@
                         </span>
                     </div>
 
-                    <li id="Dashboard" class="nav-link" @* onclick="location.href='@Url.Action("Adminlist", "Management")'" *@>
-                        <a href="#" class="@(currentController == "Management" && currentAction == "Adminlist" ? "active" : "")">
+                    <li id="Dashboard" class="nav-link" onclick="location.href='@Url.Action("Dashboard", "Request")'">
+                        <a href="#" class="@(currentController == "Request" && currentAction == "Dashboard" ? "active" : "")">
                             <i class='icon bx bxs-bar-chart-alt-2'></i><span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">แดชบอร์ด</span>
                         </a>
                     </li>

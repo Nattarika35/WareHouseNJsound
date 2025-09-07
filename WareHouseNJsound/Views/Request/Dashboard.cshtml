@@ -1,0 +1,106 @@
+﻿<div class="container my-4">
+    <h4 class="mb-3" style="font-family:'Noto Sans Thai',sans-serif;">Top 5 อะไหล่ที่ถูกเบิกใช้มากที่สุด</h4>
+
+    <!-- กล่องจำกัดความกว้างและสูงของกราฟ -->
+    <div id="materialsChartWrap" style="max-width:720px; margin:auto;">
+        <canvas id="materialsChart" style="height:320px; width:100%;"></canvas>
+    </div>
+
+    <div id="chartEmpty" class="text-muted small d-none">ไม่มีข้อมูลสำหรับช่วงนี้</div>
+</div>
+
+<!-- ✅ jQuery ก่อนเสมอ -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- libs ที่พึ่ง jQuery (ถ้าใช้ daterangepicker จริง ให้มี CSS ด้วย) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
+<!-- ✅ SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- ✅ Chart.js (ครั้งเดียวพอ) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    (async function () {
+        const url = '@Url.Action("TopMaterialsChart", "Request")' + '?top=5&start=2025-09-01&end=2025-09-30';
+
+        // กันค้าง: timeout 10 วินาที
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
+            const res = await fetch(url, {
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            const ctype = res.headers.get('content-type') || '';
+            if (!res.ok) {
+                console.error('HTTP error', res.status, res.statusText);
+                if (window.Swal) Swal.fire('ผิดพลาด', `โหลดกราฟไม่สำเร็จ (${res.status})`, 'error');
+                return;
+            }
+            if (!ctype.includes('application/json')) {
+                console.error('Not JSON. Maybe redirected?', ctype);
+                if (window.Swal) Swal.fire('ผิดพลาด', 'เซิร์ฟเวอร์ตอบกลับไม่ใช่ JSON', 'error');
+                return;
+            }
+
+            const data = await res.json();
+            const labels = data.map(x => x.materialName ?? x.MaterialName);
+            const quantities = data.map(x => x.totalQty ?? x.TotalQty);
+
+            if (!labels.length) {
+                document.getElementById('chartEmpty').classList.remove('d-none');
+                return;
+            }
+
+            const ctx = document.getElementById('materialsChart').getContext('2d');
+
+            // ถ้ามีกราฟเดิมอยู่ ให้ลบทิ้งก่อน
+            if (window._materialsChart) {
+                window._materialsChart.destroy();
+            }
+
+            window._materialsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'จำนวนที่เบิก',
+                        data: quantities,
+                        borderWidth: 1,
+                        maxBarThickness: 48 // จำกัดความกว้างแท่ง
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // ให้ปรับสูงตาม style ของ canvas/container
+                    layout: { padding: { left: 8, right: 8, top: 8, bottom: 8 } },
+                    scales: {
+                        x: { ticks: { autoSkip: true, maxTicksLimit: 8 } },
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'bottom' },
+                        tooltip: { callbacks: { label: (ctx) => ` ${ctx.parsed.y} ชิ้น` } }
+                    }
+                }
+            });
+
+            // ถ้า container เล็ก/ใหญ่ เปลี่ยนขนาดหน้าต่าง → resize อัตโนมัติอยู่แล้วเพราะ responsive:true
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                console.error('Fetch timeout');
+                if (window.Swal) Swal.fire('ช้าเกินไป', 'เซิร์ฟเวอร์ตอบสนองช้า (timeout 10 วินาที)', 'warning');
+            } else {
+                console.error(err);
+                if (window.Swal) Swal.fire('ผิดพลาด', 'เกิดข้อผิดพลาดขณะโหลดกราฟ', 'error');
+            }
+        }
+    })();
+</script>
