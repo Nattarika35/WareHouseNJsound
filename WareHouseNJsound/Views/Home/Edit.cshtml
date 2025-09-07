@@ -56,9 +56,8 @@
             <input type="hidden" asp-for="Materials_ID" />
 
             <div class="mb-3">
-                <label asp-for="Materials_ID" class="form-label fw-semibold text-start">รหัสสินค้า</label>
-                <input asp-for="Materials_ID" class="form-control form-control-lg" placeholder="กรุณากรอกรหัสสินค้า" required />
-
+                <label class="form-label fw-semibold text-start">รหัสสินค้า</label>
+                <input value="@Model.Materials_ID" class="form-control form-control-lg" readonly />
             </div>
 
             <div class="mb-3">
@@ -80,6 +79,11 @@
                         asp-items="@(new SelectList(ViewBag.Units, "Unit_ID", "UnitName"))" required>
                     <option value="" disabled>-- เลือกหน่วยนับ --</option>
                 </select>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="OnHandStock" class="form-label fw-semibold text-start">จำนวนสต๊อก</label>
+                <input asp-for="OnHandStock" type="number" class="form-control form-control-lg" min="0" placeholder="กรอกจำนวนสต๊อก" required />
             </div>
 
             <div class="mb-3">

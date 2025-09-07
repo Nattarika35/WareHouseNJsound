@@ -7,15 +7,19 @@
 <meta charset="utf-8" />
 <html lang="en">
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://unpkg.com/boxicons@2.1.4/dist/boxicons.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Domine:wght@598&family=Noto+Sans+Thai:wght@100..900&display=swap" rel="stylesheet">
-    
+    <!-- CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- JS: ลำดับที่ถูกต้อง -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- อื่น ๆ ที่ไม่พึ่ง jQuery ค่อยตามมา -->
+    <script src="https://unpkg.com/boxicons@2.1.4/dist/boxicons.js"></script>
     
     <style>
         .btn-submit {
@@ -92,6 +96,20 @@
 
         <h2 style="font-family: 'Noto Sans Thai', sans-serif; margin-bottom: 10px;">รายการเบิก</h2>
 
+        <div class="d-flex justify-content-end my-3 gap-3">
+            <select id="statusFilter" class="form-select shadow-none" style="font-family: 'Noto Sans Thai', sans-serif; width:220px;">
+                <option value="">สถานะทั้งหมด</option>
+                @foreach (var s in (IEnumerable<WareHouseNJsound.Models.Status>)ViewBag.Statuses)
+                {
+                    <option value="@s.Status_ID">@s.StatusName</option>
+                }
+            </select>
+
+
+            <input type="text" name="daterange" id="daterange"
+                   class="form-control shadow-none" style="width:230px;" />
+        </div>
+
         <div class="table-responsive">
             <table class="table table-bordered" id="tblMyRequest" style="font-size: 12px; font-weight: 400;">
                 <thead>
@@ -102,6 +120,7 @@
                         <th>Quanlity</th> *@
                         <th>Request Date</th>
                         <th>Status</th>
+                        <th style="display:none;">StatusId</th> @* ซ่อน *@
                     </tr>
                 </thead>
                 <tbody>
@@ -121,11 +140,12 @@
 
                             <td style="text-align: center;">
                                 <span class="status-label"
-                                      style="background-color:@(item.Status?.Color ?? "#6c757d"); color:#000;">
+                                      style="font-family: 'Noto Sans Thai', sans-serif; background-color:@(item.Status?.Color ?? "#6c757d"); color:#fff;">
                                     @item.Status?.StatusName
                                 </span>
 
                             </td>
+                            <td style="display:none;">@item.Status_ID</td> @* <-- ค่าเน็ตๆ ไม่มีสเปซ *@
                         </tr>
                     }
                 </tbody>
@@ -133,72 +153,119 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
+<script>
+ 
+  (function () {
+    var msg = @Html.Raw(TempData["SuccessMessage"] != null ? System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"]) : "null");
+    var rn  = @Html.Raw(TempData["RequestNumber"] != null ? System.Text.Json.JsonSerializer.Serialize(TempData["RequestNumber"]) : "null");
+    if (msg) {
+      Swal.fire({ icon:'success', title:'สำเร็จ', text: rn ? (msg + ' เลขที่: ' + rn) : msg, confirmButtonText:'ตกลง' });
+    }
+  })();
+</script>
 
-    @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-      (function () {
-        var msg = @Html.Raw(
-          TempData["SuccessMessage"] != null
-          ? System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])
-          : "null"
-        );
-        var rn = @Html.Raw(
-          TempData["RequestNumber"] != null
-          ? System.Text.Json.JsonSerializer.Serialize(TempData["RequestNumber"])
-          : "null"
-        );
-        if (msg) {
-          Swal.fire({
-            icon: 'success',
-            title: 'สำเร็จ',
-            text: rn ? (msg + ' เลขที่: ' + rn) : msg,
-            confirmButtonText: 'ตกลง'
-          });
-        }
-      })();
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+  var filterStart = null, filterEnd = null;
+  var table = null;
+
+  // custom filter สำหรับช่วงวันที่ (index 1 = Request Date)
+  if (!window._dateFilterRegistered) {
+    $.fn.dataTable.ext.search.push(function (settings, data) {
+      var reqStr = data[1] || '';
+      if (!reqStr) return true;
+
+      var req = moment(reqStr, 'DD/MM/YYYY HH:mm:ss', true);
+      if (!req.isValid()) return true;
+
+      if (filterStart && req.isBefore(filterStart, 'second')) return false;
+      if (filterEnd   && req.isAfter (filterEnd,  'second')) return false;
+      return true;
+    });
+    window._dateFilterRegistered = true;
+  }
+
+  $(function () {
+    // init DataTable แค่ครั้งเดียว
+    if (!$.fn.DataTable.isDataTable('#tblMyRequest')) {
+      table = $('#tblMyRequest').DataTable({
+        language: {
+          lengthMenu: "Show _MENU_ entries",
+          zeroRecords: "ไม่พบข้อมูลที่ค้นหา",
+          info: "Showing _START_ to _END_ of _TOTAL_ entries",
+          infoEmpty: "Showing 0 to 0 of 0 entries",
+          infoFiltered: "(filtered from _MAX_ total entries)",
+          search: "Search:",
+          paginate: { first:"First", last:"Last", next:"Next", previous:"Previous" }
+        },
+        pageLength: 10,
+        lengthMenu: [[10,25,50,100,-1],[10,25,50,100,"All"]],
+        order: [[0, "desc"]],
+                    columnDefs: [
+                        { orderable: false, targets: [1] },
+                        { searchable: true, targets: [0, 1, 2] },
+                        { targets: [3], visible: false, searchable: true } // ซ่อน StatusId
+                    ],
+        responsive: true,
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        processing: false,
+        serverSide: false
+      });
+      window.tblMyRequest = table;
+    } else {
+      table = $('#tblMyRequest').DataTable();
     }
 
-    <script type="text/javascript">
-        $(document).ready(function () {
+    // Date Range Picker
+    if (!window._daterangeBound) {
+      $('#daterange').daterangepicker({
+        autoUpdateInput:false,
+        opens:'left',
+        locale:{
+          format:'DD/MM/YYYY',
+          applyLabel:'ตกลง',
+          cancelLabel:'ล้าง',
+          daysOfWeek:['อา','จ','อ','พ','พฤ','ศ','ส'],
+          monthNames:['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'],
+          firstDay:1
+        }
+      });
 
-            $('#tblMyRequest').DataTable({
-                "language": {
-                    "lengthMenu": "Show _MENU_ entries",
-                    "zeroRecords": "ไม่พบข้อมูลที่ค้นหา",
-                    "info": "Showing _START_ to _END_ of _TOTAL_ entries",
-                    "infoEmpty": "Showing 0 to 0 of 0 entries",
-                    "infoFiltered": "(filtered from _MAX_ total entries)",
-                    "search": "Search:",
-                    "paginate": {
-                        "first": "First",
-                        "last": "Last",
-                        "next": "Next",
-                        "previous": "Previous"
-                    }
-                },
-                "pageLength": 10,
-                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                "order": [[0, "desc"]],
-                "columnDefs": [
-                    { "orderable": false, "targets": [1] },   // คอลัมน์ Request Date
-                    { "searchable": true, "targets": [0, 1] } // RequestNumber + Request Date
-                ],
-                "responsive": true,
-                "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-                "processing": false,
-                "serverSide": false
+      $('#daterange').on('apply.daterangepicker', function (ev, picker) {
+        $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
+        filterStart = picker.startDate.clone().startOf('day');
+        filterEnd   = picker.endDate.clone().endOf('day');
+        table.draw();
+      });
+
+      $('#daterange').on('cancel.daterangepicker', function () {
+        $(this).val('');
+        filterStart = null;
+        filterEnd   = null;
+        table.draw();
+      });
+
+      window._daterangeBound = true;
+    }
+
+            $('#statusFilter').on('change', function () {
+                var val = $(this).val();
+                if (val) {
+                    // exact match ด้วย regex + escape ไว้
+                    var pattern = '^' + $.fn.dataTable.util.escapeRegex(val) + '$';
+                    table.column(3).search(pattern, true, false).draw();
+                } else {
+                    table.column(3).search('').draw();
+                }
             });
 
+  });
+</script>
 
 
-        });
-    </script>
 </body>
 </html>

@@ -74,6 +74,11 @@
             </div>
 
             <div class="mb-3">
+                <label asp-for="OnHandStock" class="form-label fw-semibold text-start">จำนวนสต๊อก</label>
+                <input asp-for="OnHandStock" type="number" class="form-control form-control-lg" min="0" placeholder="กรอกจำนวนสต๊อก" required />
+            </div>
+
+            <div class="mb-3">
                 <label asp-for="MinimumStock" class="form-label fw-semibold text-start">สต๊อกขั้นต่ำ</label>
                 <input asp-for="MinimumStock" type="number" class="form-control form-control-lg" min="0" placeholder="กรอกจำนวนขั้นต่ำ" required />
             </div>

@@ -23,5 +23,7 @@ namespace WareHouseNJsound.Models
         public virtual Category Category { get; set; }
 
         public virtual Stock Stock { get; set; }
+        [NotMapped]                // รับค่าจากฟอร์มไว้ไปลง Stock
+        public int? OnHandStock { get; set; }
     }
 }

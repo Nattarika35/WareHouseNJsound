@@ -72,118 +72,143 @@ namespace WareHouseNJsound.Controllers
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddMaterial(Materials materials, IFormFile PictureFile)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
+                return View(materials);
+
+            // อ่านรูปเป็น byte[]
+            if (PictureFile != null && PictureFile.Length > 0)
             {
-                if (PictureFile != null && PictureFile.Length > 0)
+                using var ms = new MemoryStream();
+                await PictureFile.CopyToAsync(ms);
+                materials.Picture = ms.ToArray();
+            }
+
+            // ใช้ทรานแซกชันกันค้างครึ่งทาง
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 1) บันทึกตัวสินค้า
+                _context.materials.Add(materials);
+                await _context.SaveChangesAsync();
+
+                // 2) สร้าง/อัปเดต stock สำหรับสินค้านี้
+                var qty = materials.OnHandStock ?? 0;   // มาจากฟอร์ม
+                var stock = await _context.Stocks
+                    .SingleOrDefaultAsync(s => s.Materials_ID == materials.Materials_ID);
+
+                if (stock == null)
                 {
-                    using (var memoryStream = new MemoryStream())
+                    stock = new Stock
                     {
-                        await PictureFile.CopyToAsync(memoryStream);
-                        materials.Picture = memoryStream.ToArray(); // ใส่เป็น byte[]
-                    }
+                        Materials_ID = materials.Materials_ID,
+                        OnHandStock = qty,
+                    };
+                    _context.Stocks.Add(stock);
+                }
+                else
+                {
+                    // เลือก logic ได้: จะ "ตั้งค่าเท่ากับ" หรือ "บวกเพิ่ม"
+                    //stock.OnHandStock = qty;
+                    stock.OnHandStock += qty;
                 }
 
-                _context.Add(materials);
                 await _context.SaveChangesAsync();
+                await tx.CommitAsync();
 
                 TempData["SuccessMessage"] = "เพิ่มสินค้าเรียบร้อยแล้ว";
                 return RedirectToAction(nameof(Index));
             }
-
-            return View(materials);
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                ModelState.AddModelError("", "บันทึกไม่สำเร็จ: " + ex.Message);
+                return View(materials);
+            }
         }
 
-        // GET: Home/Edit/5
         public async Task<IActionResult> Edit(string id)
         {
-            if (id == null) return NotFound();
+            if (string.IsNullOrWhiteSpace(id)) return NotFound();
 
             var material = await _context.materials
+                .Include(m => m.Stock)
                 .Include(m => m.Category)
                 .Include(m => m.Unit)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.Materials_ID == id);
 
             if (material == null) return NotFound();
 
-            ViewBag.Categories = _context.Categories.ToList();
-            ViewBag.Units = _context.Units.ToList();
+            // ดึงค่าจากตาราง Stock มาใส่ฟิลด์ที่ใช้โชว์ในฟอร์ม
+            material.OnHandStock = material.Stock?.OnHandStock ?? 0;
+
+            ViewBag.Categories = await _context.Categories.AsNoTracking().ToListAsync();
+            ViewBag.Units = await _context.Units.AsNoTracking().ToListAsync();
 
             return View(material);
         }
 
 
-        // POST: Home/Edit/5
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(string id, Materials materials, IFormFile PictureFile)
+        public async Task<IActionResult> Edit(string id, Materials input, IFormFile PictureFile)
         {
-            if (id != materials.Materials_ID)
+            if (id != input.Materials_ID)
             {
-                // กรณีที่แก้ไขรหัสสินค้า ต้องจัดการลบข้อมูลเก่าหรืออัปเดตคีย์หลัก
-                // เพราะ EF Core ไม่รองรับเปลี่ยนค่า PK ตรงๆ
-                var oldMaterial = await _context.materials.FindAsync(id);
-                if (oldMaterial == null) return NotFound();
-
-                // ลบข้อมูลเก่าที่มี PK เดิม
-                _context.materials.Remove(oldMaterial);
-
-                // ใส่ข้อมูลใหม่ (พร้อมรหัสที่แก้ไข)
-                if (PictureFile != null && PictureFile.Length > 0)
-                {
-                    using var ms = new MemoryStream();
-                    await PictureFile.CopyToAsync(ms);
-                    materials.Picture = ms.ToArray();
-                }
-                else
-                {
-                    // ถ้าไม่ได้อัปโหลดรูปใหม่ ให้เก็บรูปเดิมจากข้อมูลเก่าไว้
-                    materials.Picture = oldMaterial.Picture;
-                }
-
-                _context.materials.Add(materials);
-                await _context.SaveChangesAsync();
-
-                TempData["SuccessMessage"] = "แก้ไขข้อมูลสำเร็จ";
-                return RedirectToAction(nameof(Index));
+                ModelState.AddModelError("", "ไม่อนุญาตให้แก้ไขรหัสสินค้า");
             }
 
-            // กรณีรหัสไม่เปลี่ยน (PK เดิม)
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                try
-                {
-                    if (PictureFile != null && PictureFile.Length > 0)
-                    {
-                        using var ms = new MemoryStream();
-                        await PictureFile.CopyToAsync(ms);
-                        materials.Picture = ms.ToArray();
-                    }
-                    else
-                    {
-                        // เก็บรูปเดิมจากฐานข้อมูล
-                        var oldMaterial = await _context.materials.AsNoTracking().FirstOrDefaultAsync(m => m.Materials_ID == id);
-                        materials.Picture = oldMaterial?.Picture;
-                    }
-
-                    _context.Update(materials);
-                    await _context.SaveChangesAsync();
-
-                    TempData["SuccessMessage"] = "แก้ไขข้อมูลสำเร็จ";
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!_context.materials.Any(e => e.Materials_ID == id))
-                        return NotFound();
-                    else
-                        throw;
-                }
-                return RedirectToAction(nameof(Index));
+                ViewBag.Categories = await _context.Categories.ToListAsync();
+                ViewBag.Units = await _context.Units.ToListAsync();
+                return View(input);
             }
-            return View(materials);
+
+            var mat = await _context.materials
+                .Include(m => m.Stock)
+                .FirstOrDefaultAsync(m => m.Materials_ID == id);
+
+            if (mat == null) return NotFound();
+
+            // อัปเดตข้อมูลพื้นฐาน
+            mat.MaterialsName = input.MaterialsName;
+            mat.Category_ID = input.Category_ID;
+            mat.Unit_ID = input.Unit_ID;
+            mat.MinimumStock = input.MinimumStock;
+            mat.Description = input.Description;
+
+            // รูปภาพ
+            if (PictureFile != null && PictureFile.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await PictureFile.CopyToAsync(ms);
+                mat.Picture = ms.ToArray();
+            }
+
+            // อัปเดตสต๊อก (ตั้งค่าให้เท่ากับค่าที่กรอกมา)
+            var newQty = input.OnHandStock ?? mat.Stock?.OnHandStock ?? 0;
+            if (mat.Stock == null)
+            {
+                mat.Stock = new Stock
+                {
+                    Materials_ID = mat.Materials_ID,
+                    OnHandStock = newQty,
+                };
+                _context.Stocks.Add(mat.Stock);
+            }
+            else
+            {
+                mat.Stock.OnHandStock = newQty; // หรือจะทำเป็น + เพิ่ม ก็เปลี่ยนเป็น += ได้
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "แก้ไขข้อมูลสำเร็จ";
+            return RedirectToAction(nameof(Index));
         }
+
 
 
         // GET: Home/Delete/5

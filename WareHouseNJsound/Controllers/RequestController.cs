@@ -200,22 +200,29 @@ namespace WareHouseNJsound.Controllers
         {
             try
             {
-                await LoadNotificationsForTopBarAsync(); // << ใส่ตรงนี้
+                await LoadNotificationsForTopBarAsync(); // โหลดการแจ้งเตือนด้านบน
 
                 var requests = await _context.Requests
                     .Include(x => x.Status)
-                    //.Include(x => x.Workflows)
-                    //    .ThenInclude(w => w.Status)
+                    //.Include(x => x.Workflows).ThenInclude(w => w.Status)
                     .ToListAsync();
+
+                // ✅ ส่งรายการสถานะทั้งหมดไปที่ View
+                ViewBag.Statuses = await _context.status
+                    .OrderBy(s => s.StatusName)
+                    .ToListAsync();
+
                 return View(requests);
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                // ส่ง ViewBag.Statuses ว่างไปด้วย กัน View error
+                ViewBag.Statuses = new List<Status>();
                 return View(new List<Request>());
-
             }
         }
+
 
         [HttpGet]
         public async Task<IActionResult> Edit(Guid requestId)
@@ -235,38 +242,99 @@ namespace WareHouseNJsound.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateStatus(Guid requestId, string decision, string rejectReason)
+        public async Task<IActionResult> UpdateStatus(Guid requestId, string decision, string? rejectReason)
         {
-            var req = await _context.Requests.FirstOrDefaultAsync(r => r.Request_ID == requestId);
-            if (req == null) return NotFound();
+            // ดึงใบคำร้องพร้อมรายละเอียด วัสดุ และสต๊อก
+            var request = await _context.Requests
+                .Include(r => r.RequestDetails)
+                    .ThenInclude(d => d.Materials)
+                        .ThenInclude(m => m.Stock)
+                .FirstOrDefaultAsync(r => r.Request_ID == requestId);
 
-            // 👉 ปรับส่วนนี้ให้ตรง schema ของคุณ
-            // ตัวอย่างที่ 1: ถ้าใน Request มีฟิลด์ Status_ID (int)
-            // 1 = Pending, 2 = Approved, 3 = Rejected (ตัวเลขเป็นเพียงตัวอย่าง)
+            if (request == null) return NotFound();
+
+            // ถ้าถูกปิดไปแล้ว ไม่ให้ทำซ้ำ
+            if (request.Status_ID == 302 || request.Status_ID == 303)
+            {
+                TempData["ErrorMessage"] = "รายการนี้ถูกปิดสถานะแล้ว";
+                return RedirectToAction("PendingRequets", "Request");
+            }
+
             if (decision == "approve")
             {
-                // req.Status_ID = 2;
-                // ถ้ามีฟิลด์อื่นประกอบ เช่น ApprovedBy / ApprovedDate ก็เซ็ตที่นี่
+                // ตรวจสต๊อกก่อนหัก
+                var insufficient = new List<string>();
+                foreach (var d in request.RequestDetails)
+                {
+                    var onhand = d.Materials?.Stock?.OnHandStock ?? 0;
+                    if (onhand < d.Quantity)
+                    {
+                        insufficient.Add($"{d.Materials?.MaterialsName} (คงเหลือ {onhand}, ขอ {d.Quantity})");
+                    }
+                }
+
+                if (insufficient.Any())
+                {
+                    TempData["ErrorMessage"] = "สต๊อกไม่พอสำหรับ:\n" + string.Join("\n", insufficient);
+                    // กลับไปหน้ารายละเอียดจะได้เห็นว่าอันไหนขาด
+                    return RedirectToAction("Details", "Request", new { id = requestId });
+                }
+
+                // หักสต๊อก + อัปเดตสถานะ ใน Transaction
+                using var tx = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                try
+                {
+                    foreach (var d in request.RequestDetails)
+                    {
+                        // ถ้ายังไม่มีแถวสต๊อก ให้สร้าง
+                        if (d.Materials!.Stock == null)
+                        {
+                            d.Materials.Stock = new Stock
+                            {
+                                Materials_ID = d.Materials_ID!,
+                                OnHandStock = 0
+                            };
+                            _context.Stocks.Add(d.Materials.Stock);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        d.Materials.Stock.OnHandStock -= d.Quantity;
+
+                        // ป้องกันติดลบ (เผื่อมีการแก้ไขระหว่างทาง)
+                        if (d.Materials.Stock.OnHandStock < 0)
+                            throw new InvalidOperationException($"สต๊อกติดลบสำหรับ {d.Materials.MaterialsName}");
+
+                        // (ถ้ามีตารางประวัติการเคลื่อนไหว ก็ insert ตรงนี้ได้)
+                        // _context.StockMoves.Add(new StockMove { ... Qty = -d.Quantity, ...});
+                    }
+
+                    request.Status_ID = 302; // เสร็จสิ้น
+                    await _context.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    TempData["SuccessMessage"] = "ทำรายการสำเร็จ";
+                    return RedirectToAction("PendingRequets", "Request");
+                }
+                catch (Exception ex)
+                {
+                    await tx.RollbackAsync();
+                    TempData["ErrorMessage"] = "ไม่สามารถทำรายการได้: " + ex.Message;
+                    return RedirectToAction("Details", "Request", new { id = requestId });
+                }
             }
             else if (decision == "reject")
             {
-                // req.Status_ID = 3;
-                // ถ้ามีฟิลด์ Reason/Remark เก็บสาเหตุ ให้บันทึก rejectReason
-                // req.RejectReason = rejectReason;
+                request.Status_ID = 303; // ยกเลิก
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "ทำรายการสำเร็จ";
+                return RedirectToAction("PendingRequets", "Request");
             }
 
-            // ตัวอย่างที่ 2: ถ้าคุณใช้ Workflow/Status แยกตาราง
-            // ให้ไปเพิ่มแถว Workflow ใหม่ หรืออัปเดต CurrentStatus ตามระบบของคุณแทน
-
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = decision == "approve"
-                ? "อนุมัติคำร้องเรียบร้อย"
-                : "ปฏิเสธคำร้องเรียบร้อย";
-            TempData["RequestNumber"] = req.RequestNumber;
-
+            TempData["ErrorMessage"] = "คำสั่งไม่ถูกต้อง";
             return RedirectToAction("PendingRequets", "Request");
         }
+
 
         private async Task LoadNotificationsForTopBarAsync()
         {

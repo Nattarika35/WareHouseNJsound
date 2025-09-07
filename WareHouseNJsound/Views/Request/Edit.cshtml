@@ -36,7 +36,7 @@
         </div>
     </div>
 
-    <h5 class="mb-2">รายการอะไหล่</h5>
+
     <div class="table-responsive">
         <table class="table table-bordered align-middle">
             <thead class="table-secondary text-center">
@@ -67,26 +67,30 @@
         </table>
     </div>
 
-    <div class="d-flex justify-content-end  gap-2 mt-3">
-        <form asp-action="UpdateStatus" asp-controller="Request" method="post" class="approve-form">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="requestId" value="@Model.Request_ID" />
-            <input type="hidden" name="decision" value="approve" />
-            <button type="submit" class="btn btn-success">
-                เสร็จสิ้น
-            </button>
-        </form>
+    @if (Model.Status_ID != 302 && Model.Status_ID != 303)
+    {
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <form asp-action="UpdateStatus" asp-controller="Request" method="post" class="approve-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="requestId" value="@Model.Request_ID" />
+                <input type="hidden" name="decision" value="approve" />
+                <button type="submit" class="btn btn-success">
+                    เสร็จสิ้น
+                </button>
+            </form>
 
-        <form asp-action="UpdateStatus" asp-controller="Request" method="post" class="reject-form">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="requestId" value="@Model.Request_ID" />
-            <input type="hidden" name="decision" value="reject" />
-            <input type="hidden" name="rejectReason" id="rejectReason" />
-            <button type="submit" class="btn btn-danger">
-                ยกเลิก
-            </button>
-        </form>
-    </div>
+            <form asp-action="UpdateStatus" asp-controller="Request" method="post" class="reject-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="requestId" value="@Model.Request_ID" />
+                <input type="hidden" name="decision" value="reject" />
+                <input type="hidden" name="rejectReason" id="rejectReason" />
+                <button type="submit" class="btn btn-danger">
+                    ยกเลิก
+                </button>
+            </form>
+        </div>
+    }
+
 </div>
 
 @section Scripts {
