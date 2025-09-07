@@ -136,6 +136,33 @@
     <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
+
+    @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      (function () {
+        var msg = @Html.Raw(
+          TempData["SuccessMessage"] != null
+          ? System.Text.Json.JsonSerializer.Serialize(TempData["SuccessMessage"])
+          : "null"
+        );
+        var rn = @Html.Raw(
+          TempData["RequestNumber"] != null
+          ? System.Text.Json.JsonSerializer.Serialize(TempData["RequestNumber"])
+          : "null"
+        );
+        if (msg) {
+          Swal.fire({
+            icon: 'success',
+            title: 'สำเร็จ',
+            text: rn ? (msg + ' เลขที่: ' + rn) : msg,
+            confirmButtonText: 'ตกลง'
+          });
+        }
+      })();
+    </script>
+    }
+
     <script type="text/javascript">
         $(document).ready(function () {
 

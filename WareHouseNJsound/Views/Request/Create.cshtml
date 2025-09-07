@@ -100,21 +100,16 @@
                 <div class="form-group row mt-2">
                     <label class="col-sm-3 col-form-label">ใช้สำหรับงาน :</label>
                     <div class="col-sm-9">
-                        <select asp-for="RequestDetails[@i].Jobs_ID"
-                            asp-items="@(new SelectList(ViewBag.Jobs ?? new List<Jobs>(), "JobsID", "JobsName"))"
-                            class="form-control jobs-select" required
-                            data-index="@i">
+                        <select id="HeaderJobsId" class="form-control" required>
                             <option value="">-- เลือกงาน --</option>
+                            @foreach (var j in (ViewBag.Jobs ?? new List<WareHouseNJsound.Models.Jobs>()))
+                            {
+                                <option value="@j.JobsID">@j.JobsName</option>
+                            }
                         </select>
-
-                        <!-- ช่องเหตุผล (ซ่อนก่อน) -->
-                        <div class="reason-box mt-2" id="reason-box-@i" style="display:none;">
-                            <label class="d-block text-start">เหตุผล :</label>
-                            <textarea name="RequestDetails[@i].Reason"
-                                        class="form-control"></textarea>
-                        </div>
                     </div>
                 </div>
+
             }
 
 
@@ -130,22 +125,23 @@
         <hr />
 
         <h3>รายการสินค้า</h3>
-        
 
-        <table class="table table-bordered text-center" id="itemTable">
-            <thead class="table-secondary">
-                <tr>
-                    <th style="width: 5%;">ลำดับที่</th>
-                    <th style="width: 20%;">อะไหล่</th>
-                    <th>จำนวน</th>
-                    <th>หน่วย</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <!-- Initial row will be inserted via JavaScript -->
-            </tbody>
-        </table>
+
+            <table class="table table-bordered text-center" id="itemTable">
+                <thead class="table-secondary">
+                    <tr>
+                        <th style="width:5%;">ลำดับ</th>
+                        <th style="width:25%;">อะไหล่</th>
+                        <th style="width:12%;">จำนวน</th>
+                        <th style="width:12%;">หน่วย</th>
+                        @* <th style="width:22%;">งาน</th> *@
+                        @* <th style="width:16%;">เหตุผล</th> *@
+                        <th style="width:8%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+
 
    
 
@@ -157,180 +153,147 @@
         </div>
     </form>
 </div>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    let rowCount = 0;
+    @section Scripts {
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    // ฟังก์ชันสร้างแถว (ยังไม่มีข้อมูลสินค้า แค่ input เฉย ๆ)
-    function createRow(isFirstRow = false) {
-        rowCount++;
-        const row = document.createElement("tr");
-
-        row.innerHTML = `
-            <td>${rowCount}</td>
-            <td><select name="RequestDetails[0].Materials_ID" class="form-control material-select">
-                    <option value="">-- เลือกอะไหล่ --</option>
-                    @foreach (var m in (ViewBag.Materials ?? new List<WareHouseNJsound.Models.Materials>()))
-                    {
-                        <option value="@m.Materials_ID" data-unit="@m.Unit?.UnitName">
-                            @m.MaterialsName
-                        </option>
-                    }
-
-                </select>
-            </td>
-            <td><input name="RequestDetails[0].Quantity" type="number" class="form-control" min="0" step="1" /></td>
-                    <td class="unit-cell">-</td>
-                    <td>
-                ${isFirstRow
-                    ? `<button type="button" class="btn btn-add btn-sm" onclick="addRow()">+</button>
-`
-                    : `<button type="button" class="btn btn-remove btn-sm" onclick="removeRow(this)">-</button>`}
-            </td>
-        `;
-
-        return row;
-    }
-
-    // เพิ่มแถวใหม่
-    function addRow() {
-        const tableBody = document.getElementById("tableBody");
-        const newRow = createRow(false);
-        tableBody.appendChild(newRow);
-        updateRowNumbers();
-    }
-
-    // ลบแถว
-    function removeRow(button) {
-        const row = button.closest("tr");
-        row.remove();
-        updateRowNumbers();
-    }
-
-    // อัปเดตเลขลำดับแถว
-    function updateRowNumbers() {
-    const rows = document.querySelectorAll("#tableBody tr");
-    rows.forEach((tr, index) => {
-        tr.children[0].textContent = index + 1; // เลขลำดับ
-
-        // อัปเดต name ของ input/select ให้ตรง index ใหม่
-        $(tr).find("select.material-select").attr("name", `RequestDetails[${index}].Materials_ID`);
-        $(tr).find("input[type=number]").attr("name", `RequestDetails[${index}].Quantity`);
-    });
-    rowCount = rows.length;
-}
-
-    // สร้างแถวแรกตอนโหลด
-    document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("tableBody").appendChild(createRow(true));
-    });
-
-
-    //ดึงชื่อพนักงาน
-    $(document).ready(function() {
-        $('#Employee_ID').on('change', function() {
-            var empId = $(this).val();
-            if(empId) {
-                $.ajax({
-                    url: '@Url.Action("GetEmployeeName", "YourControllerName")',
-                    type: 'GET',
-                    data: { employeeId: empId },
-                    success: function(name) {
-                        $('#EmployeeName').val(name);
-                    }
-                });
-            } else {
-                $('#EmployeeName').val('');
+        <script id="tmpl-material-options" type="text/template">
+            <option value="">-- เลือกอะไหล่ --</option>
+            @foreach (var m in (ViewBag.Materials ?? new List<WareHouseNJsound.Models.Materials>()))
+            {
+                <text>
+                    <option value="@m.Materials_ID"
+                            data-unitid="@(m.Unit_ID)"
+                            data-unitname="@m.Unit?.UnitName">
+                        @m.MaterialsName
+                    </option>
+                </text>
             }
-        });
-    });
+        </script>
 
-    $(document).on("change", ".material-select", function () {
-    var selectedOption = $(this).find("option:selected");
-    var unitName = selectedOption.data("unit") || "-";
-    $(this).closest("tr").find(".unit-cell").text(unitName);
-});
+        <script>
+            let rowCount = 0;
 
+            function createRow(isFirstRow = false) {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                  <td class="row-no"></td>
+                  <td>
+                    <select class="form-control material-select" name="RequestDetails[0].Materials_ID" required>
+                      ${document.getElementById('tmpl-material-options').innerHTML}
+                    </select>
+                    <!-- hidden ส่งกลับไป DB -->
+                    <input type="hidden" class="unit-id" name="RequestDetails[0].Unit_ID" value="0" />
+                    <input type="hidden" class="jobs-id" name="RequestDetails[0].Jobs_ID" value="" />
+                  </td>
+                  <td>
+                    <input name="RequestDetails[0].Quantity" type="number" class="form-control qty-input" min="1" step="1" required />
+                  </td>
+                  <td class="unit-cell">-</td>
+                  <td>
+                    ${isFirstRow
+                        ? `<button type="button" class="btn btn-add btn-sm" onclick="addRow()">+</button>`
+                        : `<button type="button" class="btn btn-remove btn-sm" onclick="removeRow(this)">-</button>`}
+                  </td>
+                `;
+                return tr;
+            }
 
-             // สร้าง Map Employee_ID => FullName
-            var employeeMap = {
-        @foreach (var emp in (Model.Employees ?? new List<WareHouseNJsound.Models.Employee>()))
-        {
-            <text>'@emp.Employee_ID': '@emp.FullName',</text>
-        }
-
-            };
-
-            $(document).ready(function() {
-                $('#EmployeeSelect').on('change', function() {
-                    var empId = $(this).val();
-                    $('#EmployeeName').val(empId ? employeeMap[empId] : '');
+            function updateRowNumbers() {
+                const rows = document.querySelectorAll("#tableBody tr");
+                rows.forEach((tr, i) => {
+                    tr.querySelector(".row-no").textContent = i + 1;
+                    tr.querySelector(".material-select")?.setAttribute("name", `RequestDetails[${i}].Materials_ID`);
+                    tr.querySelector(".unit-id")?.setAttribute("name", `RequestDetails[${i}].Unit_ID`);
+                    tr.querySelector(".jobs-id")?.setAttribute("name", `RequestDetails[${i}].Jobs_ID`);
+                    tr.querySelector(".qty-input")?.setAttribute("name", `RequestDetails[${i}].Quantity`);
                 });
+                rowCount = rows.length;
+            }
 
-                // ถ้า page โหลดแล้วมีค่า default
-                var defaultId = $('#EmployeeSelect').val();
-                if(defaultId) {
-                    $('#EmployeeName').val(employeeMap[defaultId]);
-                }
+            function addRow() {
+                const tbody = document.getElementById("tableBody");
+                const tr = createRow(false);
+                tbody.appendChild(tr);
+                // set Jobs_ID ตามงานด้านบน
+                const headerJob = document.getElementById('HeaderJobsId')?.value || '';
+                tr.querySelector('.jobs-id').value = headerJob;
+                updateRowNumbers();
+            }
+
+            function removeRow(btn) {
+                btn.closest('tr').remove();
+                updateRowNumbers();
+            }
+
+            // อัปเดต Unit_ID / ชื่อหน่วยเมื่อเลือกอะไหล่
+            document.addEventListener("change", function (e) {
+                if (!e.target.classList.contains("material-select")) return;
+                const tr = e.target.closest("tr");
+                const opt = e.target.selectedOptions[0];
+                const unitId = opt ? (opt.getAttribute("data-unitid") || 0) : 0;
+                const unitName = opt ? (opt.getAttribute("data-unitname") || "-") : "-";
+                tr.querySelector(".unit-id").value = unitId || 0;
+                tr.querySelector(".unit-cell").textContent = unitName;
             });
 
-            $(document).on("change", ".jobs-select", function () {
-        let selectedValue = $(this).val();
-        let index = $(this).data("index");
+            // เปลี่ยนงานด้านบน -> กระจาย Jobs_ID ทุกแถว
+            document.addEventListener("DOMContentLoaded", function () {
+                const headerJobs = document.getElementById('HeaderJobsId');
+                headerJobs?.addEventListener('change', function () {
+                    const val = this.value || '';
+                    document.querySelectorAll('#tableBody .jobs-id').forEach(input => input.value = val);
+                });
 
-        if (selectedValue == "710") {
-            $("#reason-box-" + index).show();
-        } else {
-            $("#reason-box-" + index).hide();
-        }
-    });
+                // แถวแรก
+                document.getElementById("tableBody").appendChild(createRow(true));
+                const firstJob = headerJobs?.value || '';
+                document.querySelector('#tableBody .jobs-id').value = firstJob;
+                updateRowNumbers();
+            });
 
-    $("form").on("submit", function (e) {
-    let isValid = true;
+            // ✅ ยืนยันก่อนส่ง + ตรวจความครบถ้วน
+            $("form").on("submit", function (e) {
+                e.preventDefault();
 
-    // ล้าง error เดิม
-    $(".form-control").removeClass("is-invalid");
+                let isValid = true;
+                $(".form-control").removeClass("is-invalid");
 
-    // ตรวจ input และ select ทุกตัว
-    $(this).find("input[required], select[required], textarea[required]").each(function () {
-        if (!$(this).val()) {
-            $(this).addClass("is-invalid");
-            isValid = false;
-        }
-    });
+                if (!$('#HeaderJobsId').val()) {
+                    $('#HeaderJobsId').addClass('is-invalid');
+                    isValid = false;
+                }
 
-    if (!isValid) {
-        e.preventDefault(); // ยกเลิก submit
-        Swal.fire({
-            icon: 'error',
-            title: 'กรอกข้อมูลไม่ครบ',
-            text: 'กรุณากรอกข้อมูลให้ครบทุกช่อง'
-        });
-    }
-});
-
-        $(document).ready(function () {
-            var success = '@ViewBag.Success' === 'True';
-            var requestNumber = '@ViewBag.RequestNumber';
-
-            if (success && requestNumber) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'บันทึกสำเร็จ!',
-                    text: 'เลขรหัสการเบิกของคุณคือ: ' + requestNumber,
-                    confirmButtonText: 'ตกลง'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // redirect ไปที่ PendingRequets ใน RequestController
-                        window.location.href = '@Url.Action("PendingRequets", "Request")';
+                $(this).find("input[required], select[required], textarea[required]").each(function () {
+                    if (!$(this).val()) {
+                        $(this).addClass("is-invalid");
+                        isValid = false;
                     }
                 });
-            }
-        });
 
+                if (!isValid) {
+                    Swal.fire({ icon: 'error', title: 'กรอกข้อมูลไม่ครบ', text: 'กรุณากรอกข้อมูลให้ครบทุกช่อง' });
+                    return;
+                }
 
+                Swal.fire({
+                    title: 'ยืนยันส่งใบเบิก?',
+                    text: 'ตรวจสอบความถูกต้องก่อนยืนยัน',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'ยืนยัน',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((res) => {
+                    if (res.isConfirmed) {
+                        // กันพลาด: sync Jobs_ID อีกรอบก่อนส่ง
+                        const val = $('#HeaderJobsId').val() || '';
+                        document.querySelectorAll('#tableBody .jobs-id').forEach(input => input.value = val);
+                        e.target.submit();
+                    }
+                });
+            });
+        </script>
+    }
 
-</script>
 
 </body>
 </html>

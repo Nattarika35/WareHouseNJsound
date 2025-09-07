@@ -549,6 +549,7 @@ namespace WareHouseNJsound.Controllers
             emp.Address = model.Address;
             emp.Brithdate = model.Brithdate;
             emp.Gender_ID = model.Gender_ID;
+            emp.Personal_ID = model.Personal_ID;
             // ถ้ามี Role_ID ให้แก้ด้วยตามต้องการ (เช่น คง 202 เป็นพนักงาน)
 
             // รูปภาพ

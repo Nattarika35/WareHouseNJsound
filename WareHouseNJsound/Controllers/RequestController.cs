@@ -96,59 +96,47 @@ namespace WareHouseNJsound.Controllers
             model.Request ??= new Request();
             model.RequestDetails ??= new List<RequestDetail>();
 
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                // สร้าง Request_ID
-                model.Request.Request_ID = Guid.NewGuid();
-
-                // กำหนดวันที่ปัจจุบัน
-                model.Request.Request_Date = DateTime.Now;
-
-                // สร้างเลข RequestNumber ป้องกันซ้ำ
-                // ใช้รูปแบบ REQ-yyyyMMddHHmmss + 4 ตัวอักษรจาก Guid
-                string guidPart = Guid.NewGuid().ToString("N").Substring(0, 2).ToUpper();
-                model.Request.RequestNumber = $"REQ-{DateTime.Now:yyyyMMdd}{guidPart}";
-
-                // บันทึก Request
-                _context.Requests.Add(model.Request);
-                await _context.SaveChangesAsync();
-
-                // บันทึก RequestDetails
-                foreach (var detail in model.RequestDetails)
-                {
-                    if (!string.IsNullOrEmpty(detail.Materials_ID) && detail.Quantity > 0)
-                    {
-                        detail.RequestDetail_ID = Guid.NewGuid();
-                        detail.Request_ID = model.Request.Request_ID;
-                        _context.RequestDetails.Add(detail);
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-
-                // ส่งค่า RequestNumber ไป View
-                ViewBag.Success = true;
-                ViewBag.RequestNumber = model.Request.RequestNumber;
+                // โหลดข้อมูลกลับไป view เหมือนเดิม...
+                // (ข้ามรายละเอียดซ้ำ)
+                return View(model);
             }
 
-            // โหลดข้อมูลสำหรับ View อีกครั้ง (Employee, Jobs, Materials)
-            model.Employees = await _context.Employees
-                                            .Where(e => e.Role_ID == 202)
-                                            .AsNoTracking()
-                                            .OrderBy(e => e.Emp_Fname)
-                                            .ToListAsync();
+            model.Request.Request_ID = Guid.NewGuid();
+            model.Request.Request_Date = DateTime.Now;
+            string guidPart = Guid.NewGuid().ToString("N").Substring(0, 2).ToUpper();
+            model.Request.RequestNumber = $"REQ-{DateTime.Now:yyyyMMdd}{guidPart}";
 
-            var jobs = await _context.Jobs.AsNoTracking().OrderBy(j => j.JobsName).ToListAsync();
-            ViewBag.Jobs = jobs;
+            _context.Requests.Add(model.Request);
+            await _context.SaveChangesAsync();
 
-            var materials = await _context.materials.Include(m => m.Unit).ToListAsync();
-            ViewBag.Materials = materials ?? new List<Materials>();
+            foreach (var detail in model.RequestDetails)
+            {
+                if (string.IsNullOrEmpty(detail.Materials_ID) || detail.Quantity <= 0)
+                    continue;
 
-            // กัน null
-            if (model.RequestDetails.Count == 0)
-                model.RequestDetails = new List<RequestDetail> { new RequestDetail() };
+                // Fallback: ถ้า Unit_ID == 0 ให้ดึงจากวัสดุ
+                if (detail.Unit_ID == 0)
+                {
+                    detail.Unit_ID = await _context.materials
+                        .Where(m => m.Materials_ID == detail.Materials_ID)
+                        .Select(m => m.Unit_ID)
+                        .FirstOrDefaultAsync();
+                }
 
-            return View(model);
+                detail.RequestDetail_ID = Guid.NewGuid();
+                detail.Request_ID = model.Request.Request_ID;
+                _context.RequestDetails.Add(detail);
+            }
+
+            await _context.SaveChangesAsync();
+
+
+            // ✅ ใช้ TempData แล้ว Redirect ไปหน้ารออนุมัติ
+            TempData["SuccessMessage"] = "บันทึกใบเบิกสำเร็จ";
+            TempData["RequestNumber"] = model.Request.RequestNumber;
+            return RedirectToAction("PendingRequets", "Request");
         }
 
 

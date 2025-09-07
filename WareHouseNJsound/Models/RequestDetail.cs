@@ -11,10 +11,11 @@ namespace WareHouseNJsound.Models
         public Guid RequestDetail_ID { get; set; }
         public Guid Request_ID { get; set; }
         public string Materials_ID { get; set; } 
-        public int Quantity { get; set; }
-        public int MiscIssue { get; set; }
-        public int Unit_ID { get; set; }
-        public int Jobs_ID { get; set; }
+        public int? Quantity { get; set; }
+        public int? MiscIssue { get; set; }
+        public int? Unit_ID { get; set; }
+        public int? Jobs_ID { get; set; }
+        public string Reason { get; set; }
 
         [ForeignKey("Request_ID")]
         public virtual Request Request { get; set; }
