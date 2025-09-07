@@ -17,23 +17,76 @@
 </head>
 <body>
     <div class="top-bar">
-        <div class="d-flex justify-content-end align-items-center px-3" style="height: 60px; ">
+        <div class="d-flex justify-content-end align-items-center px-3" style="height: 60px;">
+            @* 🔔 ปุ่มแจ้งเตือน *@
+            <div class="dropdown me-3">
+                <button class="btn btn-link text-white position-relative p-0"
+                        type="button" id="notifDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false"
+                        style="line-height:1;">
+                    <i class='bx bx-bell bx-sm'></i>
+                    @* แสดง badge เฉพาะเมื่อมีแจ้งเตือน *@
+                    @{
+                        var notifCount = (int?)ViewBag.NotificationCount ?? 0;
+                        var showBadge = notifCount > 0 ? "" : "d-none";
+                    }
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger @showBadge">
+                        @notifCount
+                        <span class="visually-hidden">unread notifications</span>
+                    </span>
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="notifDropdown" style="min-width: 300px;">
+                    <li class="dropdown-header fw-semibold">การแจ้งเตือน</li>
+
+                    @{
+                        // ถ้าไม่อยากพิมพ์ยาว ใส่ @using WareHouseNJsound.Models ไว้บนสุดของ _Layout ก็ได้
+                        var notifs = ViewBag.Notifications as IEnumerable<WareHouseNJsound.Models.Notification>;
+                    }
+
+                    @if (notifs != null && notifs.Any())
+                    {
+                        foreach (var n in notifs)
+                        {
+                            <li>
+                                <a class="dropdown-item small d-flex align-items-start gap-2"
+                                   href="@Url.Action("Go","Notifications", new { id = n.Id })">
+                                    <i class='bx bx-bell mt-1'></i>
+                                    <span>
+                                        <div class="fw-semibold">@n.Title</div>
+                                        <div class="text-muted small">@n.Message</div>
+                                        <div class="text-muted small">@n.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                                    </span>
+                                </a>
+                            </li>
+                        }
+                        <li><hr class="dropdown-divider" /></li>
+                        <li><a class="dropdown-item text-center" href="@Url.Action("Index","Notifications")">ดูทั้งหมด</a></li>
+                    }
+                    else
+                    {
+                        <li><span class="dropdown-item text-muted small">ยังไม่มีการแจ้งเตือน</span></li>
+                    }
+                </ul>
+
+            </div>
+
+            @* ชื่อ + รูปผู้ใช้เดิม *@
             @{
                 var fullName = HttpContextAccessor.HttpContext.Session.GetString("FullName");
                 var profileImage = HttpContextAccessor.HttpContext.Session.GetString("ProfileImage") ?? "~/img/default-profile.png";
             }
-
             @if (!string.IsNullOrEmpty(fullName))
             {
                 <div class="d-flex align-items-center">
-                    <span class="me-2">@fullName</span>
+                    <span class="me-2" style="font-family: 'Noto Sans Thai', sans-serif; color:white; ">@fullName</span>
                     <img src="@Url.Content(profileImage)" alt="Profile"
                          class="rounded-circle" style="width:40px; height:40px; object-fit:cover;" />
                 </div>
             }
-
         </div>
     </div>
+
 
     <div class="layout">
         <!-- Sidebar -->
@@ -55,30 +108,30 @@
 
                     <li id="Dashboard" class="nav-link" @* onclick="location.href='@Url.Action("Adminlist", "Management")'" *@>
                         <a href="#" class="@(currentController == "Management" && currentAction == "Adminlist" ? "active" : "")">
-                            <i class='icon bx bxs-bar-chart-alt-2'></i><span class="text nav-text">แดชบอร์ด</span>
+                            <i class='icon bx bxs-bar-chart-alt-2'></i><span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">แดชบอร์ด</span>
                         </a>
                     </li>
 
                     <li id="Home" class="nav-link" onclick="location.href='@Url.Action("Index", "Home")'">
                         <a href="#" class="@(currentController == "Home" && currentAction == "Index" ? "active" : "")">
-                            <i class='icon bx bxs-store-alt'></i><span class="text nav-text">คลังสินค้า</span>
+                            <i class='icon bx bxs-store-alt'></i><span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">คลังสินค้า</span>
                         </a>
                     </li>
                     <li id="Requests" class="nav-link" onclick="location.href='@Url.Action("Create", "Request")'">
                         <a href="#" class="@(currentController == "Request" && currentAction == "Create" ? "active" : "")">
-                            <i class='icon bx bx-mail-send'></i><span class="text nav-text">เบิกสินค้า</span>
+                            <i class='icon bx bx-mail-send'></i><span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">เบิกสินค้า</span>
                         </a>
                     </li>
                     <li id="RequestPending" class="nav-link right-align" onclick="location.href='@Url.Action("PendingRequets", "Request")'">
                         <a href="#" class="@(currentController == "Request" && currentAction == "PendingRequets" ? "active" : "")">
-                            <span class="text nav-text">- คำร้องขอ</span>
+                            <span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">- รายการเบิก</span>
                         </a>
                     </li>
 
 
                     <li id="Admin" class="nav-link" onclick="location.href='@Url.Action("Admin", "Home")'">
                         <a asp-action="Admin" asp-controller="Home" class="@(currentController == "Home" && currentAction == "Admin" ? "active" : "")">
-                            <i class='icon bx bxs-user'></i></i><span class="text nav-text">ผู้ใช้งาน</span>
+                            <i class='icon bx bxs-user'></i></i><span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">ผู้ใช้งาน</span>
                         </a>
                     </li>
 
@@ -86,13 +139,13 @@
 
                     <li id="Employee" class="nav-link" onclick="location.href='@Url.Action("Employee", "Home")'">
                         <a asp-action="Employee" asp-controller="Home" class="@(currentController == "Home" && currentAction == "Employee" ? "active" : "")">
-                            <i class='icon bx bxs-user-badge'></i></i><span class="text nav-text">พนักงาน</span>
+                            <i class='icon bx bxs-user-badge'></i></i><span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">พนักงาน</span>
                         </a>
                     </li>
 
                     <li id="Logout" class="nav-link" onclick="location.href='@Url.Action("Index", "Login")'">
                         <a href="#" class="@(currentController == "Login" && currentAction == "Index" ? "active" : "")">
-                            <i class='icon bx bx-log-out'></i><span class="text nav-text">ออกจากระบบ</span>
+                            <i class='icon bx bx-log-out'></i><span class="text nav-text" style="font-family: 'Noto Sans Thai', sans-serif;">ออกจากระบบ</span>
                         </a>
                     </li>
 

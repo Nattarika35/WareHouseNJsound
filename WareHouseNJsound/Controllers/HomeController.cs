@@ -36,6 +36,7 @@ namespace WareHouseNJsound.Controllers
         {
             var query = _context.materials
                 .AsNoTracking()
+                .Include(p => p.Stock)
                 .Include(p => p.Unit)
                 .Include(p => p.Category)
                 .AsQueryable();

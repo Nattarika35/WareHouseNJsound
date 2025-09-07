@@ -21,5 +21,7 @@ namespace WareHouseNJsound.Models
 
         [ForeignKey("Category_ID")]
         public virtual Category Category { get; set; }
+
+        public virtual Stock Stock { get; set; }
     }
 }

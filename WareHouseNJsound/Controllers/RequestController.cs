@@ -130,6 +130,26 @@ namespace WareHouseNJsound.Controllers
                 detail.Request_ID = model.Request.Request_ID;
                 _context.RequestDetails.Add(detail);
             }
+            // ลิงก์ไปหน้าอนุมัติ/ดูรายละเอียดคำขอ
+            var linkToEdit = Url.Action("Edit", "Request", new { requestId = model.Request.Request_ID });
+
+            // ดึงรายชื่อแอดมิน
+            var admins = await _context.Employees
+                .Where(e => e.Role_ID == 201) // 201 = Admin
+                .Select(e => e.Employee_ID)
+                .ToListAsync();
+
+            // สร้างแจ้งเตือนให้ทุกแอดมิน
+            foreach (var adminId in admins)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    Employee_ID = adminId,
+                    Title = "มีคำขอใหม่",
+                    Message = $"คำขอเลขที่ {model.Request.RequestNumber} รออนุมัติ",
+                    Link = linkToEdit
+                });
+            }
 
             await _context.SaveChangesAsync();
 
@@ -180,6 +200,8 @@ namespace WareHouseNJsound.Controllers
         {
             try
             {
+                await LoadNotificationsForTopBarAsync(); // << ใส่ตรงนี้
+
                 var requests = await _context.Requests
                     .Include(x => x.Status)
                     //.Include(x => x.Workflows)
@@ -198,6 +220,8 @@ namespace WareHouseNJsound.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(Guid requestId)
         {
+            await LoadNotificationsForTopBarAsync(); // << ใส่ตรงนี้
+
             var req = await _context.Requests
                 .Include(r => r.Employee) // ถ้า navigation ชื่อ Employee ให้เปลี่ยนเป็น .Include(r => r.Employee)
                 .Include(r => r.RequestDetails).ThenInclude(d => d.Materials)
@@ -243,6 +267,30 @@ namespace WareHouseNJsound.Controllers
 
             return RedirectToAction("PendingRequets", "Request");
         }
+
+        private async Task LoadNotificationsForTopBarAsync()
+        {
+            var roleId = HttpContext.Session.GetInt32("Role_ID");
+            var empId = HttpContext.Session.GetString("Employee_ID");
+
+            if (roleId == 201 && !string.IsNullOrEmpty(empId))
+            {
+                ViewBag.NotificationCount = await _context.Notifications
+                    .CountAsync(n => n.Employee_ID == empId && !n.IsRead);
+
+                ViewBag.Notifications = await _context.Notifications
+                    .Where(n => n.Employee_ID == empId)
+                    .OrderByDescending(n => n.CreatedAt)
+                    .Take(5)
+                    .ToListAsync();
+            }
+            else
+            {
+                ViewBag.NotificationCount = 0;
+                ViewBag.Notifications = new List<Notification>();
+            }
+        }
+
 
     }
 }

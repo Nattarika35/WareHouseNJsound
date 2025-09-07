@@ -84,6 +84,7 @@
                 <th>Name</th>
                 <th>Category</th>
                 <th>Unit</th>
+                <th>Stock</th>
                 <th>MinimumStock</th>
                 <th>Remark</th>
                 
@@ -113,6 +114,7 @@
                     <td style="text-align: left;">@item.MaterialsName</td>
                     <td>@item.Category.CategoryName</td>
                     <td>@item.Unit.UnitName</td>
+                    <td>@(item.Stock?.OnHandStock ?? 0)</td>
                     <td>@item.MinimumStock</td>
                     <td>@item.Description</td>
                     <td>

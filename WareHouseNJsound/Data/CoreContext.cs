@@ -24,6 +24,7 @@ namespace WareHouseNJsound.Data
         public DbSet<TransactionType> transactionTypes { get; set; }
         public DbSet<Transection> transections { get; set; }
         public DbSet<Workflow> workflows { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
-}
+    }
 }
