@@ -21,7 +21,7 @@ namespace WareHouseNJsound.Models
         [ForeignKey(nameof(Status_ID))]
         public virtual Status Status { get; set; }
         public virtual ICollection<RequestDetail> RequestDetails { get; set; }
-        
+        public virtual ICollection<Transaction> Transactions { get; set; }
 
     }
 }

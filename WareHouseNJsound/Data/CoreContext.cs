@@ -22,7 +22,7 @@ namespace WareHouseNJsound.Data
         public DbSet<Stock> Stocks { get; set; }
         public DbSet<StockRecipt> StockRecipts { get; set; }
         public DbSet<TransactionType> transactionTypes { get; set; }
-        public DbSet<Transection> transections { get; set; }
+        public DbSet<Transaction> Transactions { get; set; }
         public DbSet<Workflow> workflows { get; set; }
         public DbSet<Notification> Notifications { get; set; }
 

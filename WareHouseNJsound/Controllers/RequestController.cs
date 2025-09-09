@@ -243,10 +243,11 @@ namespace WareHouseNJsound.Controllers
             return View(req); // ส่ง Entity ตรง ๆ (มี navigation ครบ)
         }
 
+
+
         [HttpPost]
         public async Task<IActionResult> UpdateStatus(Guid requestId, string decision, string? rejectReason)
         {
-            // ดึงใบคำร้องพร้อมรายละเอียด วัสดุ และสต๊อก
             var request = await _context.Requests
                 .Include(r => r.RequestDetails)
                     .ThenInclude(d => d.Materials)
@@ -255,7 +256,6 @@ namespace WareHouseNJsound.Controllers
 
             if (request == null) return NotFound();
 
-            // ถ้าถูกปิดไปแล้ว ไม่ให้ทำซ้ำ
             if (request.Status_ID == 302 || request.Status_ID == 303)
             {
                 TempData["ErrorMessage"] = "รายการนี้ถูกปิดสถานะแล้ว";
@@ -264,31 +264,29 @@ namespace WareHouseNJsound.Controllers
 
             if (decision == "approve")
             {
-                // ตรวจสต๊อกก่อนหัก
-                var insufficient = new List<string>();
+                // 1) ตรวจสต๊อกก่อน
                 foreach (var d in request.RequestDetails)
                 {
                     var onhand = d.Materials?.Stock?.OnHandStock ?? 0;
                     if (onhand < d.Quantity)
                     {
-                        insufficient.Add($"{d.Materials?.MaterialsName} (คงเหลือ {onhand}, ขอ {d.Quantity})");
+                        TempData["ErrorMessage"] =
+                            $"สต๊อกไม่พอ: {d.Materials?.MaterialsName} (คงเหลือ {onhand}, ขอ {d.Quantity})";
+                        return RedirectToAction("Details", "Request", new { id = requestId }); // หรือ Edit ถ้าตั้งใจ
                     }
+                    if (d.Materials == null)
+                        throw new InvalidOperationException("พบรายการที่ไม่มีข้อมูล Materials");
                 }
 
-                if (insufficient.Any())
-                {
-                    TempData["ErrorMessage"] = "สต๊อกไม่พอสำหรับ:\n" + string.Join("\n", insufficient);
-                    // กลับไปหน้ารายละเอียดจะได้เห็นว่าอันไหนขาด
-                    return RedirectToAction("Details", "Request", new { id = requestId });
-                }
-
-                // หักสต๊อก + อัปเดตสถานะ ใน Transaction
-                using var tx = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                await using var tx = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
                 try
                 {
+                    var now = DateTime.Now;
+                    var transList = new List<Transaction>();
+
                     foreach (var d in request.RequestDetails)
                     {
-                        // ถ้ายังไม่มีแถวสต๊อก ให้สร้าง
+                        // 2) สร้าง Stock row ถ้ายังไม่มี (ยังไม่ต้อง SaveChanges ตอนนี้)
                         if (d.Materials!.Stock == null)
                         {
                             d.Materials.Stock = new Stock
@@ -297,20 +295,34 @@ namespace WareHouseNJsound.Controllers
                                 OnHandStock = 0
                             };
                             _context.Stocks.Add(d.Materials.Stock);
-                            await _context.SaveChangesAsync();
                         }
 
+                        // 3) หักสต๊อก (กันติดลบอีกรอบ)
                         d.Materials.Stock.OnHandStock -= d.Quantity;
-
-                        // ป้องกันติดลบ (เผื่อมีการแก้ไขระหว่างทาง)
                         if (d.Materials.Stock.OnHandStock < 0)
                             throw new InvalidOperationException($"สต๊อกติดลบสำหรับ {d.Materials.MaterialsName}");
 
-                        // (ถ้ามีตารางประวัติการเคลื่อนไหว ก็ insert ตรงนี้ได้)
-                        // _context.StockMoves.Add(new StockMove { ... Qty = -d.Quantity, ...});
+                        // 4) บันทึก Transaction (TranType = 2 = เบิกออก)
+                        transList.Add(new Transaction
+                        {
+                            Transaction_Date = now,
+                            TranType_ID = 2,
+                            Quantity = d.Quantity,
+                            Materials_ID = d.Materials_ID!,
+                            Request_ID = request.Request_ID,   // ให้ชนิดตรงกับคอลัมน์จริง (Guid/Int)
+                            RequestNumber = request.RequestNumber,
+                            Employee_ID = request.Employee_ID, // หรือ User ที่อนุมัติจริง
+                            Description = $"จ่ายจากคำขอ {request.RequestNumber}"
+                            // ❌ ลบ RequestNumber = ... ถ้าโมเดล/ตารางไม่มีคอลัมน์นี้
+                        });
                     }
 
-                    request.Status_ID = 302; // เสร็จสิ้น
+                    if (transList.Count > 0)
+                        _context.Transactions.AddRange(transList); // หรือ _context.Transactions
+
+                    // 5) ปิดสถานะคำร้อง
+                    request.Status_ID = 302;
+
                     await _context.SaveChangesAsync();
                     await tx.CommitAsync();
 
@@ -320,13 +332,16 @@ namespace WareHouseNJsound.Controllers
                 catch (Exception ex)
                 {
                     await tx.RollbackAsync();
-                    TempData["ErrorMessage"] = "ไม่สามารถทำรายการได้: " + ex.Message;
+                    var root = ex.GetBaseException()?.Message ?? ex.Message;
+                    TempData["ErrorMessage"] = "ไม่สามารถทำรายการได้: " + root;
                     return RedirectToAction("Details", "Request", new { id = requestId });
                 }
+
             }
             else if (decision == "reject")
             {
                 request.Status_ID = 303; // ยกเลิก
+                                         // TODO: ถ้าจะเก็บเหตุผลการยกเลิก ให้มีฟิลด์/ตารางรองรับ แล้วบันทึก rejectReason ตรงนี้
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "ทำรายการสำเร็จ";
@@ -336,6 +351,7 @@ namespace WareHouseNJsound.Controllers
             TempData["ErrorMessage"] = "คำสั่งไม่ถูกต้อง";
             return RedirectToAction("PendingRequets", "Request");
         }
+
 
 
         private async Task LoadNotificationsForTopBarAsync()
