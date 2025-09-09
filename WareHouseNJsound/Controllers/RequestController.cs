@@ -376,10 +376,104 @@ namespace WareHouseNJsound.Controllers
                 ViewBag.Notifications = new List<Notification>();
             }
         }
-        public IActionResult Dashboard()
+        public async Task<IActionResult> Dashboard()
         {
-            return View();
+            // การ์ดสรุป
+            var totalSku = await _context.materials.CountAsync();
+            var totalOnHand = await _context.Stocks.SumAsync(s => (int?)s.OnHandStock) ?? 0;
+            var lowStockCount = await _context.materials
+                .Include(m => m.Stock)
+                .Where(m => m.MinimumStock > 0 && (m.Stock != null && m.Stock.OnHandStock < m.MinimumStock))
+                .CountAsync();
+
+            // ถ้ามีคำร้องรออนุมัติ (ปรับตามระบบของคุณ)
+            var pending = await _context.Requests.CountAsync(r => r.Status_ID == 301 /* Pending */);
+
+            // คงเหลือต่ำกว่า Minimum (Top 10)
+            var lowStocks = await _context.materials
+                .AsNoTracking()
+                .Include(m => m.Stock)
+                .Include(m => m.Unit)
+                .Where(m => m.MinimumStock > 0 && (m.Stock != null && m.Stock.OnHandStock < m.MinimumStock))
+                .OrderBy(m => (m.Stock!.OnHandStock * 1.0) / m.MinimumStock) // สัดส่วนคงเหลือ/ขั้นต่ำ
+                .ThenBy(m => m.MaterialsName)
+                .Take(10)
+                .Select(m => new LowStockRow
+                {
+                    Materials_ID = m.Materials_ID,
+                    MaterialsName = m.MaterialsName,
+                    UnitName = m.Unit != null ? m.Unit.UnitName : null,
+                    OnHand = m.Stock != null ? (m.Stock.OnHandStock ?? 0) : 0,
+                    MinimumStock = m.MinimumStock ?? 0
+                })
+                .ToListAsync();
+
+            // รายการรับเข้า (TranType=1) ล่าสุด 10 รายการ
+            var receipts = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.TranType_ID == 1)
+                .OrderByDescending(t => t.Transaction_Date)
+                .Take(10)
+                .Join(_context.materials,
+                      t => t.Materials_ID,
+                      m => m.Materials_ID,
+                      (t, m) => new { t, m })
+                .Join(_context.Units,  // ถ้า Unit เป็น nav ของ Materials อยู่แล้ว จะ select จาก m.Unit ได้เหมือนกัน
+                      tm => tm.m.Unit_ID,
+                      u => u.Unit_ID,
+                      (tm, u) => new TransRow
+                      {
+                          Date = tm.t.Transaction_Date,
+                          Materials_ID = tm.m.Materials_ID,
+                          MaterialsName = tm.m.MaterialsName,
+                          Qty = tm.t.Quantity ?? 0,
+                          UnitName = u.UnitName,
+                          DocNo = tm.t.RequestNumber,
+                          Employee_ID = tm.t.Employee_ID,
+                          Description = tm.t.Description
+                      })
+                .ToListAsync();
+
+            // รายการเบิกออก (TranType=2) ล่าสุด 10 รายการ
+            var issues = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.TranType_ID == 2)
+                .OrderByDescending(t => t.Transaction_Date)
+                .Take(10)
+                .Join(_context.materials,
+                      t => t.Materials_ID,
+                      m => m.Materials_ID,
+                      (t, m) => new { t, m })
+                .Join(_context.Units,
+                      tm => tm.m.Unit_ID,
+                      u => u.Unit_ID,
+                      (tm, u) => new TransRow
+                      {
+                          Date = tm.t.Transaction_Date,
+                          Materials_ID = tm.m.Materials_ID,
+                          MaterialsName = tm.m.MaterialsName,
+                          Qty = tm.t.Quantity ?? 0,
+                          UnitName = u.UnitName,
+                          DocNo = tm.t.RequestNumber,
+                          Employee_ID = tm.t.Employee_ID,
+                          Description = tm.t.Description
+                      })
+                .ToListAsync();
+
+            var vm = new DashboardVM
+            {
+                TotalSku = totalSku,
+                TotalOnHand = totalOnHand,
+                LowStockCount = lowStockCount,
+                PendingRequests = pending,
+                LowStocks = lowStocks,
+                RecentReceipts = receipts,
+                RecentIssues = issues
+            };
+
+            return View(vm);
         }
+
 
         public async Task<IActionResult> TopMaterialsChart(
             [Range(1, 50)] int top = 5,
@@ -414,5 +508,106 @@ namespace WareHouseNJsound.Controllers
             var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
             return new JsonResult(data, opts);
         }
+
+        public class DashboardVM
+        {
+            // การ์ดสรุป
+            public int TotalSku { get; set; }            // จำนวนรายการสินค้า (SKU)
+            public int TotalOnHand { get; set; }         // จำนวนคงเหลือรวมทั้งหมด
+            public int LowStockCount { get; set; }       // จำนวนสินค้าที่ต่ำกว่าขั้นต่ำ
+            public int PendingRequests { get; set; }     // (ถ้ามี workflow รออนุมัติ)
+
+            // Alert: คงเหลือต่ำกว่า Min
+            public List<LowStockRow> LowStocks { get; set; } = new();
+
+            // รายการเคลื่อนไหวล่าสุด
+            public List<TransRow> RecentReceipts { get; set; } = new(); // TranType=1
+            public List<TransRow> RecentIssues { get; set; } = new();   // TranType=2
+        }
+
+        public class LowStockRow
+        {
+            public string Materials_ID { get; set; } = default!;
+            public string MaterialsName { get; set; } = default!;
+            public string UnitName { get; set; }
+            public int OnHand { get; set; }
+            public int MinimumStock { get; set; }
+        }
+
+        public class TransRow
+        {
+            public DateTime Date { get; set; }
+            public string Materials_ID { get; set; } = default!;
+            public string MaterialsName { get; set; } = default!;
+            public int Qty { get; set; }
+            public string UnitName { get; set; }
+            public string DocNo { get; set; }      // ใช้ RequestNumber/เอกสารอ้างอิง
+            public string Employee_ID { get; set; }
+            public string Description { get; set; }
+        }
+
+        // 1. การ์ดสรุป
+        [HttpGet]
+        public async Task<IActionResult> DashboardCounts()
+        {
+            var totalSku = await _context.materials.CountAsync();
+            var totalOnHand = await _context.Stocks.SumAsync(s => (int?)s.OnHandStock) ?? 0;
+            var lowStockCount = await _context.materials
+                .Include(m => m.Stock)
+                .CountAsync(m => m.MinimumStock > 0 && m.Stock != null && m.Stock.OnHandStock < m.MinimumStock);
+            var pending = await _context.Requests.CountAsync(r => r.Status_ID == 301);
+
+            return Json(new { totalSku, totalOnHand, lowStockCount, pending });
+        }
+
+        // 2. Low stock (Top 10)
+        [HttpGet]
+        public async Task<IActionResult> LowStockTable()
+        {
+            var rows = await _context.materials
+                .AsNoTracking()
+                .Include(m => m.Stock)
+                .Include(m => m.Unit)
+                .Where(m => m.MinimumStock > 0 && m.Stock != null && m.Stock.OnHandStock < m.MinimumStock)
+                .OrderBy(m => (m.Stock!.OnHandStock * 1.0) / m.MinimumStock)
+                .ThenBy(m => m.MaterialsName)
+                .Take(10)
+                .Select(m => new {
+                    m.Materials_ID,
+                    m.MaterialsName,
+                    UnitName = m.Unit != null ? m.Unit.UnitName : null,
+                    OnHand = m.Stock != null ? m.Stock.OnHandStock : 0,
+                    m.MinimumStock
+                })
+                .ToListAsync();
+
+            return PartialView("_LowStockTable", rows);
+        }
+
+        // 3. เคลื่อนไหวล่าสุด (รับเข้า/เบิกออก)
+        [HttpGet]
+        public async Task<IActionResult> RecentTransactions(int type = 1, int take = 10)
+        {
+            var list = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.TranType_ID == type)
+                .OrderByDescending(t => t.Transaction_Date)
+                .Take(take)
+                .Join(_context.materials, t => t.Materials_ID, m => m.Materials_ID, (t, m) => new {
+                    t.Transaction_Date,
+                    t.Quantity,
+                    t.RequestNumber,
+                    t.Employee_ID,
+                    t.Description,
+                    m.Materials_ID,
+                    m.MaterialsName,
+                    UnitName = m.Unit.UnitName
+                })
+                .ToListAsync();
+
+            return PartialView("_RecentTransTable", list);
+        }
+
+
     }
 }

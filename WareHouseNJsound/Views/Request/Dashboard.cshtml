@@ -1,5 +1,200 @@
-﻿<div class="container my-4">
-    <h4 class="mb-3" style="font-family:'Noto Sans Thai',sans-serif;">Top 5 อะไหล่ที่ถูกเบิกใช้มากที่สุด</h4>
+﻿<head>
+    <meta charset="utf-8" />
+    <!-- โหลด Noto Sans Thai เพียงครั้งเดียว -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+    <!-- (มี Bootstrap/SweetAlert/ฯลฯ ตามเดิม) -->
+
+    <style>
+        /* บังคับทั้งหน้าให้ใช้ Noto Sans Thai */
+        html, body, * {
+            font-family: 'Noto Sans Thai', sans-serif !important;
+        }
+
+        /* เผื่อบางคอมโพเนนต์ของ Bootstrap มีการกำหนดฟอนต์ไว้เอง */
+        :root {
+            --bs-body-font-family: 'Noto Sans Thai', sans-serif;
+        }
+
+        /* SweetAlert2 ให้ตามธีมเดียวกัน */
+        .swal2-popup,
+        .swal2-title,
+        .swal2-html-container,
+        .swal2-confirm,
+        .swal2-cancel {
+            font-family: 'Noto Sans Thai', sans-serif !important;
+        }
+    </style>
+</head>
+
+<div class="container my-4">
+    <!-- หัวข้อ + ปุ่ม -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="mb-0" style="font-family:'Noto Sans Thai',sans-serif;">📊 แดชบอร์ดคลัง</h3>
+        <div class="btn-group">
+            <a asp-controller="Home" asp-action="Receipt" class="btn btn-primary">รับเข้า</a>
+            <a asp-controller="Request" asp-action="PendingRequets" class="btn btn-outline-secondary">รออนุมัติ</a>
+        </div>
+    </div>
+
+    <!-- การ์ดสรุป -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">จำนวนสินค้า (SKU)</div>
+                    <div class="display-6 fw-bold">@Model.TotalSku</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">จำนวนคงเหลือรวม</div>
+                    <div class="display-6 fw-bold">@Model.TotalOnHand.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">คงเหลือต่ำกว่า Minimum</div>
+                    <div class="display-6 fw-bold text-danger">@Model.LowStockCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small">คำร้องรออนุมัติ</div>
+                    <div class="display-6 fw-bold">@Model.PendingRequests</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock -->
+    <div class="card border-danger mb-4">
+        <div class="card-header bg-danger text-white">
+            คงเหลือต่ำกว่า Minimum stock
+        </div>
+        <div class="card-body p-0">
+            @if (Model.LowStocks.Count == 0)
+            {
+                <div class="p-3 text-muted">ไม่มีรายการที่ต่ำกว่าขั้นต่ำ</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:14%">รหัส</th>
+                                <th>ชื่อสินค้า</th>
+                                <th style="width:12%" class="text-end">คงเหลือ</th>
+                                <th style="width:12%" class="text-end">ขั้นต่ำ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in Model.LowStocks)
+                            {
+                                <tr class="table-danger">
+                                    <td>@r.Materials_ID</td>
+                                    <td>@r.MaterialsName @if (!string.IsNullOrEmpty(r.UnitName))
+                                        {
+                                            <span class="text-muted small">(@r.UnitName)</span>
+                                        }</td>
+                                    <td class="text-end fw-bold">@r.OnHand.ToString("N0")</td>
+                                    <td class="text-end">@r.MinimumStock.ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Recent Transactions: รับเข้า / เบิกออก -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-light">รับเข้าล่าสุด</div>
+                <div class="card-body p-0">
+                    @if (Model.RecentReceipts.Count == 0)
+                    {
+                        <div class="p-3 text-muted">ยังไม่มีรายการ</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:36%">สินค้า</th>
+                                        <th style="width:12%" class="text-end">จำนวน</th>
+                                        <th style="width:24%">เอกสาร</th>
+                                        <th style="width:28%">วันที่</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var t in Model.RecentReceipts)
+                                    {
+                                        <tr>
+                                            <td>@t.MaterialsName <span class="text-muted small">(@t.Materials_ID)</span></td>
+                                            <td class="text-end fw-bold">@t.Qty</td>
+                                            <td>@t.DocNo</td>
+                                            <td>@t.Date.ToString("dd/MM/yyyy HH:mm")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-light">เบิกออกล่าสุด</div>
+                <div class="card-body p-0">
+                    @if (Model.RecentIssues.Count == 0)
+                    {
+                        <div class="p-3 text-muted">ยังไม่มีรายการ</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:36%">สินค้า</th>
+                                        <th style="width:12%" class="text-end">จำนวน</th>
+                                        <th style="width:24%">เอกสาร</th>
+                                        <th style="width:28%">วันที่</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var t in Model.RecentIssues)
+                                    {
+                                        <tr>
+                                            <td>@t.MaterialsName <span class="text-muted small">(@t.Materials_ID)</span></td>
+                                            <td class="text-end fw-bold">@t.Qty</td>
+                                            <td>@t.DocNo</td>
+                                            <td>@t.Date.ToString("dd/MM/yyyy HH:mm")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h4 class="mb-3 mt-5" style="font-family:'Noto Sans Thai',sans-serif;">Top 5 อะไหล่ที่ถูกเบิกใช้มากที่สุด</h4>
 
     <!-- กล่องจำกัดความกว้างและสูงของกราฟ -->
     <div id="materialsChartWrap" style="max-width:720px; margin:auto;">
@@ -9,7 +204,7 @@
     <div id="chartEmpty" class="text-muted small d-none">ไม่มีข้อมูลสำหรับช่วงนี้</div>
 </div>
 
-<!-- ✅ jQuery ก่อนเสมอ -->
+<!-- jQuery ก่อนเสมอ -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <!-- libs ที่พึ่ง jQuery (ถ้าใช้ daterangepicker จริง ให้มี CSS ด้วย) -->
@@ -17,10 +212,10 @@
 <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 
-<!-- ✅ SweetAlert2 -->
+<!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<!-- ✅ Chart.js (ครั้งเดียวพอ) -->
+<!-- Chart.js (ครั้งเดียวพอ) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
@@ -74,6 +269,7 @@
                         label: 'จำนวนที่เบิก',
                         data: quantities,
                         borderWidth: 1,
+                        backgroundColor: '#F5D863',
                         maxBarThickness: 48 // จำกัดความกว้างแท่ง
                     }]
                 },
