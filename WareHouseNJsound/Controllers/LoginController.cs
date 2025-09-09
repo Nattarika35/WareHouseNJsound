@@ -43,8 +43,7 @@ namespace WareHouseNJsound.Controllers
                         HttpContext.Session.SetString("ProfileImage", "/img/user.png");
                     }
 
-
-                    return RedirectToAction("Index", "Home");
+                    return RedirectToAction("Dashboard", "Request");
                 }
 
                 ViewBag.Error = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";

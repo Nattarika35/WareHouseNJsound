@@ -177,6 +177,7 @@ namespace WareHouseNJsound.Controllers
             mat.Category_ID = input.Category_ID;
             mat.Unit_ID = input.Unit_ID;
             mat.MinimumStock = input.MinimumStock;
+            mat.Price = input.Price;
             mat.Description = input.Description;
 
             // รูปภาพ

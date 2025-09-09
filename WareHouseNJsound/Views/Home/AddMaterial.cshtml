@@ -84,6 +84,11 @@
             </div>
 
             <div class="mb-3">
+                <label asp-for="Price" class="form-label fw-semibold text-start">ราคา</label>
+                <input asp-for="Price" type="number" class="form-control form-control-lg" min="0" placeholder="กรอกราคาต่อหน่อย" required />
+            </div>
+
+            <div class="mb-3">
                 <label asp-for="Description" class="form-label fw-semibold text-start">หมายเหตุ</label>
                 <textarea asp-for="Description" class="form-control" rows="4" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"></textarea>
             </div>

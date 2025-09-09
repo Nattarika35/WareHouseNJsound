@@ -94,6 +94,7 @@
                 <th>Unit</th>
                 <th>Stock</th>
                 <th>MinimumStock</th>
+                <th>Price</th>
                 <th>Remark</th>
                 
             </tr>
@@ -124,6 +125,7 @@
                     <td>@item.Unit.UnitName</td>
                     <td>@(item.Stock?.OnHandStock ?? 0)</td>
                     <td>@item.MinimumStock</td>
+                    <td>@(item.Price ?? 0)</td>
                     <td>@item.Description</td>
                     <td>
                         <a asp-action="Edit" asp-route-id="@item.Materials_ID" title="แก้ไข" class="text-warning" style="margin-right: 10px;">
