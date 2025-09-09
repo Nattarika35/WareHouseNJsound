@@ -1,0 +1,122 @@
+﻿@model IEnumerable<WareHouseNJsound.Models.Materials>
+@{
+    ViewData["Title"] = "รับของเข้า Stock";
+    var categories = (IEnumerable<string>)ViewBag.Categories ?? Enumerable.Empty<string>();
+    var selectedCategory = (string)ViewBag.SelectedCategory ?? "all";
+}
+
+<div class="container py-3">
+    <div class="position-relative mb-3 text-center">
+        <a asp-action="Index" asp-controller="Home"
+           class="btn btn-outline-secondary btn-sm position-absolute start-0 top-50 translate-middle-y">
+            กลับ
+        </a>
+        <h1 class="mb-0" style="font-family: 'Noto Sans Thai', sans-serif;">📦 รับของเข้า Stock</h1>
+    </div>
+
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
+    <!-- ตัวกรองหมวดหมู่ -->
+    <form method="get" class="row g-2 mb-3 mt-5">
+        <div class="col-auto">
+            <label class="d-flex text-end form-label">หมวดหมู่</label>
+            <select name="category" class="form-select" onchange="this.form.submit()">
+                <option value="all" selected="@("all".Equals(selectedCategory, StringComparison.OrdinalIgnoreCase))">ทั้งหมด</option>
+                @foreach (var c in categories)
+                {
+                    <option value="@c" selected="@(string.Equals(c, selectedCategory, StringComparison.OrdinalIgnoreCase))">@c</option>
+                }
+            </select>
+        </div>
+        <div class="col d-flex align-items-end">
+            <button class="btn btn-primary">กรอง</button>
+        </div>
+        <div class="col-md-3">
+            <label class="d-flex text-end form-label">เลขที่เอกสาร</label>
+            <input class="form-control" name="DocumentNo" placeholder="ว่าง = ให้เลขอัตโนมัติ" />
+        </div>
+        <div class="col-md-3">
+            <label class="d-flex text-end form-label">วันที่รับเข้า</label>
+            <input class="form-control" type="date" name="ReceiveDate" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+        </div>
+    </form>
+
+    <!-- ฟอร์มบันทึกรับเข้า -->
+    <form asp-action="Receipt" method="post" id="receiptForm">
+        @Html.AntiForgeryToken()
+       
+
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle" id="tblReceipt">
+                <thead class="table-light">
+                    <tr class="text-center">
+                        <th style="width:5%">ลำดับ</th>
+                        <th style="width:15%">รหัส</th>
+                        <th>ชื่อสินค้า</th>
+                        <th style="width:10%">คงเหลือ</th>
+                        <th style="width:12%">จำนวนรับ</th>
+                        <th style="width:20%">หมายเหตุ (ต่อรายการ)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        var idx = 0;
+                        foreach (var p in Model)
+                        {
+                            <tr>
+                                <td class="text-center">@(idx + 1)</td>
+                                <td>
+                                    @p.Materials_ID
+                                    <input type="hidden" name="Items[@idx].Materials_ID" value="@p.Materials_ID" />
+                                </td>
+                                <td>@p.MaterialsName (@p.Unit?.UnitName)</td>
+                                <td class="text-end">@((p.Stock?.OnHandStock ?? 0).ToString("N0"))</td>
+                                <td>
+                                    <input type="number" name="Items[@idx].Quantity" class="form-control text-end qty-input" min="0" value="0" />
+                                </td>
+                                <td>
+                                    <input type="text" name="Items[@idx].Remark" class="form-control" />
+                                </td>
+                            </tr>
+                            idx++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+            <button type="submit" class="btn btn-success">บันทึกรับเข้า</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        // กันผู้ใช้ใส่ค่าติดลบ / ไม่ใช่ตัวเลข
+        document.querySelectorAll('.qty-input').forEach(inp => {
+            inp.addEventListener('input', e => {
+                const v = parseInt(e.target.value || '0', 10);
+                e.target.value = isNaN(v) || v < 0 ? 0 : v;
+            });
+        });
+
+        // ก่อน submit: ถ้าไม่มีรายการที่ qty>0 เลยให้เตือน
+        document.getElementById('receiptForm').addEventListener('submit', function (e) {
+            const anyQty = Array.from(document.querySelectorAll('.qty-input'))
+                .some(x => parseInt(x.value || '0', 10) > 0);
+            if (!anyQty) {
+                e.preventDefault();
+                alert('กรุณาใส่จำนวนรับเข้าอย่างน้อย 1 รายการ');
+            }
+        });
+    </script>
+}

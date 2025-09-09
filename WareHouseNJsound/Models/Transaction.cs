@@ -15,7 +15,7 @@ namespace WareHouseNJsound.Models
         public int TranType_ID { get; set; }
         public int? Quantity { get; set; }
         public string Materials_ID { get; set; }
-        public Guid Request_ID { get; set; }
+        public Guid? Request_ID { get; set; }
         public string RequestNumber { get; set; }
         public string Employee_ID { get; set; }
         public string Description { get; set; }

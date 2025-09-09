@@ -66,14 +66,22 @@
     }
 
     <div class="mb-3 d-flex justify-content-between align-items-center" style="margin-bottom: 20px;">
-        <a asp-controller="Home" asp-action="AddMaterial" class="btn btn-success" style="font-family: 'Noto Sans Thai', sans-serif;">
-            <i class="bx bx-plus"></i> เพิ่มสินค้า
-        </a>
+        <!-- กลุ่มปุ่มชิดซ้าย -->
+        <div class="d-flex gap-2">
+            <a asp-controller="Home" asp-action="AddMaterial" class="btn btn-success" style="font-family: 'Noto Sans Thai', sans-serif;">
+                <i class="bx bx-plus"></i> เพิ่มสินค้า
+            </a>
+            <a asp-controller="Home" asp-action="Receipt" class="btn btn-info" style="font-family: 'Noto Sans Thai', sans-serif; color:#fff;">
+                Receipt
+            </a>
+        </div>
 
+        <!-- ช่องค้นหาชิดขวา -->
         <div>
             <input type="text" id="searchInput" class="form-control" placeholder="Search..." style="width: 300px;" />
         </div>
     </div>
+
 
     <table class="table" style="width: 100%; border-collapse: collapse;">
         <thead>

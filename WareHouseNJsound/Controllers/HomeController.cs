@@ -632,6 +632,119 @@ namespace WareHouseNJsound.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        
+        [HttpGet]
+        public IActionResult Receipt(string? category)
+        {
+            var query = _context.materials
+                .Include(p => p.Stock)
+                .Include(p => p.Unit)
+                .Include(p => p.Category)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(category) && !string.Equals(category, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(p => p.Category.CategoryName.ToLower() == category!.ToLower());
+            }
+
+            var products = query.OrderBy(p => p.MaterialsName).ToList();
+
+            var categories = _context.Categories
+                .Select(c => c.CategoryName)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+
+            ViewBag.Categories = categories;
+            ViewBag.SelectedCategory = string.IsNullOrWhiteSpace(category) ? "all" : category;
+
+            // model = รายการสินค้าให้รับเข้า
+            return View(products);
+        }
+
+        public class ReceiptPostVM
+        {
+            public DateTime ReceiveDate { get; set; } = DateTime.Now;
+            public string DocumentNo { get; set; } = "";
+            public string? Note { get; set; }
+            public List<ReceiptItemVM> Items { get; set; } = new();
+        }
+        public class ReceiptItemVM
+        {
+            public string Materials_ID { get; set; } = default!;
+            public int Quantity { get; set; }
+            public string? Remark { get; set; }
+        }
+
+
+        // POST: บันทึกรับเข้า
+        [HttpPost]
+ 
+        public async Task<IActionResult> Receipt(ReceiptPostVM vm)
+        {
+            // กันโพสต์ว่าง ๆ
+            var validItems = vm.Items.Where(i => !string.IsNullOrWhiteSpace(i.Materials_ID) && i.Quantity > 0).ToList();
+            if (validItems.Count == 0)
+            {
+                TempData["ErrorMessage"] = "กรุณาใส่จำนวนรับเข้าอย่างน้อย 1 รายการ";
+                return RedirectToAction(nameof(Receipt), new { category = "all" });
+            }
+
+            await using var tx = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            try
+            {
+                var now = vm.ReceiveDate == default ? DateTime.Now : vm.ReceiveDate;
+                var docNo = string.IsNullOrWhiteSpace(vm.DocumentNo)
+                    ? $"GR{DateTime.Now:yyMMddHHmmss}"
+                    : vm.DocumentNo;
+
+                foreach (var it in validItems)
+                {
+                    var mat = await _context.materials
+                        .Include(m => m.Stock)
+                        .FirstOrDefaultAsync(m => m.Materials_ID == it.Materials_ID)
+                        ?? throw new InvalidOperationException($"ไม่พบรหัสสินค้า {it.Materials_ID}");
+
+                    // ถ้ายังไม่มี stock row ให้สร้าง
+                    mat.Stock ??= new Stock { Materials_ID = mat.Materials_ID, OnHandStock = 0 };
+
+                    // บวกสต๊อก
+                    mat.Stock.OnHandStock += it.Quantity;
+
+                    // Insert Transaction: TranType_ID = 1 (รับเข้า)
+                    _context.Transactions.Add(new Transaction
+                    {
+                        Transaction_Date = now,
+                        TranType_ID = 1,
+                        Quantity = it.Quantity,
+                        Materials_ID = mat.Materials_ID,
+                        Request_ID = null,               // รับเข้าทั่วไป (สคีมาคุณ Allow Nulls)
+                        RequestNumber = docNo,
+                        Employee_ID = /* รหัสผู้ทำรายการ */ "NUll",
+                        Description = string.IsNullOrWhiteSpace(it.Remark) ? vm.Note : it.Remark
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                TempData["SuccessMessage"] = $"บันทึกรับเข้า {validItems.Count} รายการ (เลขที่ {docNo}) สำเร็จ";
+                return RedirectToAction(nameof(Receipt), new { category = ViewBag?.SelectedCategory ?? "all" });
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                TempData["ErrorMessage"] = ex.GetBaseException()?.Message ?? ex.Message;
+                return RedirectToAction(nameof(Receipt), new { category = "all" });
+            }
+        }
+
+
+  
+
+        private string RunDocNo()
+        {
+            // TODO: ใส่เลขรันเอกสารรับเข้า
+            return "GR" + DateTime.Now.ToString("yyMMddHHmm");
+        }
     }
 }
