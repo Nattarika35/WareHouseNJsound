@@ -15,6 +15,9 @@ using System.Text.Json;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.SignalR;
 using WareHouseNJsound.Hubs;
+using ClosedXML.Excel;
+using System.IO;
+using System.Threading;
 
 namespace WareHouseNJsound.Controllers
 {
@@ -535,8 +538,68 @@ namespace WareHouseNJsound.Controllers
             return View(vm);
         }
 
+        
+        [HttpGet]
+        public async Task<IActionResult> ExportLowStocks(CancellationToken ct)
+        {
+            // ดึงข้อมูล “ต่ำกว่า Minimum” แบบเดียวกับใน Dashboard
+            var rows = await _context.materials
+                .AsNoTracking()
+                .Include(m => m.Stock)
+                .Include(m => m.Unit)
+                .Where(m => m.MinimumStock > 0 && (m.Stock != null && m.Stock.OnHandStock < m.MinimumStock))
+                .OrderBy(m => (m.Stock!.OnHandStock * 1.0) / m.MinimumStock)
+                .ThenBy(m => m.MaterialsName)
+                .Select(m => new
+                {
+                    Materials_ID = m.Materials_ID,
+                    MaterialsName = m.MaterialsName,
+                    UnitName = m.Unit != null ? m.Unit.UnitName : null,
+                    OnHand = m.Stock != null ? (m.Stock.OnHandStock ?? 0) : 0,
+                    MinimumStock = m.MinimumStock ?? 0,
+                  
+                })
+                .ToListAsync(ct);
 
-        public async Task<IActionResult> TopMaterialsChart(
+            using var wb = new XLWorkbook();
+            var ws = wb.Worksheets.Add("LowStock");
+
+            // สร้างตารางจาก IEnumerable โดยมีหัวคอลัมน์อัตโนมัติ
+            var table = ws.Cell(1, 1).InsertTable(rows, true);
+            table.Theme = XLTableTheme.TableStyleMedium9;
+
+            // ปรับหัวคอลัมน์ให้อ่านง่าย (ถ้าต้องการชื่อไทย)
+            ws.Cell(1, 1).Value = "รหัสวัสดุ";
+            ws.Cell(1, 2).Value = "ชื่อวัสดุ";
+            ws.Cell(1, 3).Value = "หน่วย";
+            ws.Cell(1, 4).Value = "คงเหลือ";
+            ws.Cell(1, 5).Value = "ขั้นต่ำ";
+          
+            // จัดรูปแบบ
+            ws.Columns().AdjustToContents();
+            ws.Column(6).Style.NumberFormat.Format = "0.00";
+
+            // แช่หัวคอลัมน์
+            ws.SheetView.FreezeRows(1);
+
+            // ชื่อไฟล์: LowStock-yyyyMMdd-HHmm.xlsx (โซนเวลาไทย)
+            var now = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "SE Asia Standard Time");
+            var fileName = $"LowStock-{now:yyyyMMdd-HHmm}.xlsx";
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            ms.Position = 0;
+
+            return File(
+                fileContents: ms.ToArray(),
+                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileDownloadName: fileName
+            );
+        }
+    
+
+
+    public async Task<IActionResult> TopMaterialsChart(
             [Range(1, 50)] int top = 5,
             DateTime? start = null,   // รับช่วงวันที่ (ไม่บังคับ)
             DateTime? end = null
