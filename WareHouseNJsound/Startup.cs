@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Data.SqlClient;
@@ -38,7 +39,21 @@ namespace WareHouseNJsound
 
 
             services.AddControllersWithViews();
-            services.AddSession();
+            services.AddSignalR();
+            services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromHours(8);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+            });
+
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
+                {
+                    options.LoginPath = "/Login/Index";      // ถ้าไม่ล็อกอินให้เด้งมาหน้านี้
+                    options.AccessDeniedPath = "/Login/Index";
+                    options.SlidingExpiration = true;
+                });
             services.AddHttpContextAccessor();
         }
 
@@ -68,6 +83,8 @@ namespace WareHouseNJsound
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Login}/{action=Index}/{id?}");
+
+                endpoints.MapHub<WareHouseNJsound.Hubs.NotificationHub>("/hubs/notifications");
             });
 
             //  ดึงค่า Connection String จาก appsettings.json

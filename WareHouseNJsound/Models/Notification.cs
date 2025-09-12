@@ -1,12 +1,13 @@
-﻿using System;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using System;
 
 namespace WareHouseNJsound.Models
 {
     [Table("Notification")]
     public class Notification
     {
+
         [Key] public int Id { get; set; }
 
         // แอดมินคนที่จะเห็นแจ้งเตือน (ใช้ Employee_ID ของคุณ)

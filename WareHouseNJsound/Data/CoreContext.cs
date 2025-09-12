@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using WareHouseNJsound.Hubs;
 using WareHouseNJsound.Models;
 
 namespace WareHouseNJsound.Data

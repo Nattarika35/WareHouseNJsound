@@ -1,0 +1,190 @@
+﻿@model IEnumerable<WareHouseNJsound.Models.Notification>
+@{
+    ViewData["Title"] = "การแจ้งเตือน";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+<style>
+    .notif-card {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(0,0,0,.06);
+        overflow: hidden;
+    }
+
+    .notif-item {
+        transition: background .2s ease, transform .12s ease;
+        border-bottom: 1px dashed #eef2f7;
+    }
+
+        .notif-item:hover {
+            background: #f7fbff;
+            transform: translateY(-1px);
+        }
+
+    .notif-unread .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #0d6efd;
+        display: inline-block;
+        margin-right: .5rem;
+        box-shadow: 0 0 0 3px rgba(13,110,253,.15);
+    }
+
+    .notif-read .dot {
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .notif-time {
+        font-size: .825rem;
+        color: #6c757d;
+    }
+
+    .notif-title {
+        font-weight: 600;
+        color: #0d2b5c;
+    }
+
+    .notif-msg {
+        color: #4b5b70;
+    }
+
+    .notif-actions .btn {
+        border-radius: 10px;
+    }
+
+    .notif-header {
+        background: linear-gradient(90deg, #e7f0ff, #f3f8ff);
+        border-bottom: 1px solid #e8eef7;
+    }
+</style>
+
+<div class="container py-4" style="font-family:'Noto Sans Thai', sans-serif;">
+    <div class="card notif-card">
+        <div class="d-flex align-items-center justify-content-between p-3 notif-header">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-bell-fill text-primary"></i>
+                <h5 class="mb-0">การแจ้งเตือน</h5>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="markAllReadBtn" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-check2-all me-1"></i> ทำเป็นอ่านทั้งหมด
+                </button>
+                <a class="btn btn-primary btn-sm" href="@Url.Action("Index","Notifications")">
+                    <i class="bi bi-arrow-clockwise me-1"></i> โหลดใหม่
+                </a>
+            </div>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="text-center p-5 text-muted">
+                <i class="bi bi-inbox mb-2" style="font-size:2rem;"></i>
+                <div>ยังไม่มีการแจ้งเตือน</div>
+            </div>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var n in Model)
+                {
+                    var itemClass = n.IsRead ? "notif-read" : "notif-unread";
+                    <li class="list-group-item notif-item @itemClass">
+                        <div class="d-flex align-items-start">
+                            <span class="dot mt-2"></span>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <div class="notif-title">@n.Title</div>
+                                    <div class="notif-time" data-iso="@n.CreatedAt.ToString("o")">
+                                        @n.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                </div>
+                                <div class="notif-msg small mt-1">@n.Message</div>
+
+                                <div class="notif-actions mt-2 d-flex gap-2">
+                                    <a class="btn btn-outline-secondary btn-sm"
+                                       href="@Url.Action("Go","Notifications", new { id = n.Id })">
+                                        เปิด
+                                    </a>
+                                    @if (!n.IsRead)
+                                    {
+                                        <button class="btn btn-outline-success btn-sm js-mark-read"
+                                                data-id="@n.Id">
+                                            ทำเป็นอ่านแล้ว
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+<script>
+    (function () {
+        // แปลงเวลาให้เป็น “xx นาทีที่แล้ว”
+        function timeAgo(date) {
+            const rtf = new Intl.RelativeTimeFormat('th', { numeric: 'auto' });
+            const now = new Date();
+            const d = new Date(date);
+            const seconds = Math.round((d - now) / 1000);
+            const intervals = [
+                ['year', 31536000],
+                ['month', 2592000],
+                ['week', 604800],
+                ['day', 86400],
+                ['hour', 3600],
+                ['minute', 60],
+                ['second', 1]
+            ];
+            for (const [unit, sec] of intervals) {
+                const diff = Math.round(seconds / sec);
+                if (Math.abs(diff) >= 1) return rtf.format(diff, unit);
+            }
+            return rtf.format(0, 'second');
+        }
+
+        document.querySelectorAll('.notif-time').forEach(el => {
+            const iso = el.getAttribute('data-iso');
+            if (iso) el.textContent = timeAgo(iso);
+        });
+
+        // ทำเป็นอ่านแล้ว (AJAX)
+        document.querySelectorAll('.js-mark-read').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = btn.dataset.id;
+                try {
+                    const res = await fetch(`@Url.Action("MarkRead", "Notifications")/${id}`, { method: 'POST' });
+                    if (res.ok) {
+                        const li = btn.closest('.notif-item');
+                        li.classList.remove('notif-unread');
+                        li.classList.add('notif-read');
+                        btn.remove();
+                    }
+                } catch { }
+            });
+        });
+
+        // ทำเป็นอ่านทั้งหมด
+        const allBtn = document.getElementById('markAllReadBtn');
+        if (allBtn) {
+            allBtn.addEventListener('click', async () => {
+                try {
+                    const res = await fetch(`@Url.Action("MarkAllRead", "Notifications")`, { method: 'POST' });
+                    if (res.ok) {
+                        document.querySelectorAll('.notif-item').forEach(li => {
+                            li.classList.remove('notif-unread');
+                            li.classList.add('notif-read');
+                            const b = li.querySelector('.js-mark-read'); if (b) b.remove();
+                        });
+                    }
+                } catch { }
+            });
+        }
+    })();
+</script>

@@ -21,6 +21,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            font-family: 'Poppins', sans-serif;
         }
 
         .login-container {
@@ -54,9 +55,14 @@
             color: #823f10;
         }
 
-        .form-check-label, .forgot-link {
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
             color: #823f10;
-            font-size: 0.85rem;
+            font-size: 1.2rem;
         }
 
         .login-btn {
@@ -67,18 +73,17 @@
             padding: 10px 40px;
             font-size: 1.2rem;
             margin-top: 20px;
+            transition: 0.3s;
         }
 
-        .position-relative .form-control {
-            padding-left: 45px;
-        }
+            .login-btn:hover {
+                background-color: #a54d14;
+            }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <!-- เริ่มต้นฟอร์ม -->
         <form method="post" action="/Login/Index">
-
             <!-- Login Icon -->
             <div class="login-icon">
                 <i class="bi bi-people-fill"></i>
@@ -93,14 +98,27 @@
             <!-- Password Input -->
             <div class="mb-3 position-relative">
                 <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                <input type="password" name="password" class="form-control" placeholder="Password" required>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Password" required>
+                <i class="bi bi-eye-slash toggle-password" id="togglePassword"></i>
             </div>
 
-            <!-- ปุ่ม Login -->
+            <!-- Login Button -->
             <button type="submit" class="login-btn mt-3">Login</button>
         </form>
-        <!-- จบฟอร์ม -->
     </div>
+
+    <!-- Toggle Password Script -->
+    <script>
+        const togglePassword = document.querySelector("#togglePassword");
+        const password = document.querySelector("#password");
+
+        togglePassword.addEventListener("click", function () {
+            const type = password.getAttribute("type") === "password" ? "text" : "password";
+            password.setAttribute("type", type);
+            this.classList.toggle("bi-eye");
+            this.classList.toggle("bi-eye-slash");
+        });
+    </script>
 
     <!-- SweetAlert เมื่อ Login ผิดพลาด -->
     @if (ViewBag.Error != null)
@@ -114,6 +132,8 @@
             });
         </script>
     }
-
 </body>
 </html>
+
+
+ 

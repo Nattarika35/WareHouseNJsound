@@ -1,6 +1,22 @@
 ﻿/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
 for details on configuring this project to bundle and minify static web assets. */
 
+.top-bar {
+    position: sticky; /* หรือ fixed */
+    top: 0;
+    z-index: 3000;
+}
+
+    .top-bar .dropdown-menu {
+        z-index: 4000 !important;
+    }
+
+/* กันเคสมีแถบบางหน้าไปทับ header (เช่น header ด้านในหน้ารายการ) */
+.layout .d-flex[style*="height: 60px"] {
+    position: relative;
+    z-index: 1; /* ต่ำกว่า top-bar */
+}
+
 .avatar {
     border-radius: 50%;
     overflow: hidden;

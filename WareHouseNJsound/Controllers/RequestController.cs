@@ -13,6 +13,8 @@ using System.Data;
 using System.Threading.Tasks;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.SignalR;
+using WareHouseNJsound.Hubs;
 
 namespace WareHouseNJsound.Controllers
 {
@@ -22,14 +24,15 @@ namespace WareHouseNJsound.Controllers
         private readonly CoreContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration Configuration;
+        private readonly IHubContext<NotificationHub> _hub;
 
-        public RequestController(ILogger<HomeController> logger, CoreContext context, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
+        public RequestController(ILogger<HomeController> logger, CoreContext context, IHttpContextAccessor httpContextAccessor, IConfiguration configuration, IHubContext<NotificationHub> hub)
         {
             _logger = logger;
             _context = context;
             _httpContextAccessor = httpContextAccessor;
             Configuration = configuration;
-
+            _hub = hub;
         }
         public IActionResult Index()
         {
@@ -246,7 +249,7 @@ namespace WareHouseNJsound.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> UpdateStatus(Guid requestId, string decision, string? rejectReason)
+        public async Task<IActionResult> UpdateStatus(Guid requestId, string decision, string rejectReason)
         {
             var request = await _context.Requests
                 .Include(r => r.RequestDetails)
@@ -272,7 +275,7 @@ namespace WareHouseNJsound.Controllers
                     {
                         TempData["ErrorMessage"] =
                             $"สต๊อกไม่พอ: {d.Materials?.MaterialsName} (คงเหลือ {onhand}, ขอ {d.Quantity})";
-                        return RedirectToAction("Details", "Request", new { id = requestId }); // หรือ Edit ถ้าตั้งใจ
+                        return RedirectToAction("Details", "Request", new { id = requestId });
                     }
                     if (d.Materials == null)
                         throw new InvalidOperationException("พบรายการที่ไม่มีข้อมูล Materials");
@@ -286,7 +289,7 @@ namespace WareHouseNJsound.Controllers
 
                     foreach (var d in request.RequestDetails)
                     {
-                        // 2) สร้าง Stock row ถ้ายังไม่มี (ยังไม่ต้อง SaveChanges ตอนนี้)
+                        // 2) สร้าง Stock row ถ้ายังไม่มี
                         if (d.Materials!.Stock == null)
                         {
                             d.Materials.Stock = new Stock
@@ -297,34 +300,71 @@ namespace WareHouseNJsound.Controllers
                             _context.Stocks.Add(d.Materials.Stock);
                         }
 
-                        // 3) หักสต๊อก (กันติดลบอีกรอบ)
+                        // 3) หักสต๊อก
                         d.Materials.Stock.OnHandStock -= d.Quantity;
                         if (d.Materials.Stock.OnHandStock < 0)
                             throw new InvalidOperationException($"สต๊อกติดลบสำหรับ {d.Materials.MaterialsName}");
 
-                        // 4) บันทึก Transaction (TranType = 2 = เบิกออก)
+                        // 4) Transaction (TranType = 2 = เบิกออก)
                         transList.Add(new Transaction
                         {
                             Transaction_Date = now,
                             TranType_ID = 2,
                             Quantity = d.Quantity,
                             Materials_ID = d.Materials_ID!,
-                            Request_ID = request.Request_ID,   // ให้ชนิดตรงกับคอลัมน์จริง (Guid/Int)
+                            Request_ID = request.Request_ID,
                             RequestNumber = request.RequestNumber,
-                            Employee_ID = request.Employee_ID, // หรือ User ที่อนุมัติจริง
+                            Employee_ID = request.Employee_ID,
                             Description = $"จ่ายจากคำขอ {request.RequestNumber}"
-                            // ❌ ลบ RequestNumber = ... ถ้าโมเดล/ตารางไม่มีคอลัมน์นี้
                         });
                     }
 
                     if (transList.Count > 0)
-                        _context.Transactions.AddRange(transList); // หรือ _context.Transactions
+                        _context.Transactions.AddRange(transList);
 
-                    // 5) ปิดสถานะคำร้อง
+                    // 5) ปิดสถานะ
                     request.Status_ID = 302;
 
                     await _context.SaveChangesAsync();
                     await tx.CommitAsync();
+
+             
+                    var date = DateTime.Now;
+                    var link = Url.Action("Details", "Edit", new { id = request.Request_ID }, Request.Scheme);
+                    var title = "อัปเดตสถานะใบเบิก";
+                    var message = decision == "approve"
+                        ? $"ใบเบิก {request.RequestNumber} เสร็จสิ้น ✅"
+                        : $"ใบเบิก {request.RequestNumber} ยกเลิก ❌";
+
+                    // 1) ดึงรายชื่อแอดมิน (Role_ID == 201)
+                    var adminIds = await _context.Employees
+                        .Where(e => e.Role_ID == 201)
+                        .Select(e => e.Employee_ID)
+                        .ToListAsync();
+
+                    // 2) บันทึก Notification ให้ “ทุกแอดมิน” เพื่อให้ badge/รายการใน dropdown ของแต่ละคนถูกต้อง
+                    var notis = adminIds.Select(id => new Notification
+                    {
+                        Employee_ID = id,
+                        Title = title,
+                        Message = message,
+                        Link = link,
+                        CreatedAt = now,
+                        IsRead = false
+                    }).ToList();
+
+                    _context.Notifications.AddRange(notis);
+                    await _context.SaveChangesAsync();
+
+                    // 3) ส่ง real-time ไป “กลุ่มแอดมิน” ที่ออนไลน์อยู่
+                    await _hub.Clients.Group("Admins").SendAsync("notify", new
+                    {
+                        title,
+                        message,
+                        link,
+                        createdAt = now
+                    });
+
 
                     TempData["SuccessMessage"] = "ทำรายการสำเร็จ";
                     return RedirectToAction("PendingRequets", "Request");
@@ -336,13 +376,34 @@ namespace WareHouseNJsound.Controllers
                     TempData["ErrorMessage"] = "ไม่สามารถทำรายการได้: " + root;
                     return RedirectToAction("Details", "Request", new { id = requestId });
                 }
-
             }
             else if (decision == "reject")
             {
-                request.Status_ID = 303; // ยกเลิก
-                                         // TODO: ถ้าจะเก็บเหตุผลการยกเลิก ให้มีฟิลด์/ตารางรองรับ แล้วบันทึก rejectReason ตรงนี้
+                // ยกเลิก
+                request.Status_ID = 303;
+                // TODO: บันทึกเหตุผล rejectReason ถ้ามีฟิลด์รองรับ
                 await _context.SaveChangesAsync();
+
+                //  แจ้งเตือนกรณียกเลิก
+                var noti = new Notification
+                {
+                    Employee_ID = request.Employee_ID,
+                    Title = "อัปเดตสถานะใบเบิก",
+                    Message = $"ใบเบิก {request.RequestNumber} ยกเลิก ❌",
+                    CreatedAt = DateTime.Now,
+                    IsRead = false
+                };
+                _context.Notifications.Add(noti);
+                await _context.SaveChangesAsync();
+
+                await _hub.Clients.User(request.Employee_ID)
+                          .SendAsync("notify", new
+                          {
+                              title = noti.Title,
+                              message = noti.Message,
+                              link = Url.Action("Details", "Request", new { id = request.Request_ID }),
+                              createdAt = noti.CreatedAt
+                          });
 
                 TempData["SuccessMessage"] = "ทำรายการสำเร็จ";
                 return RedirectToAction("PendingRequets", "Request");
@@ -608,6 +669,26 @@ namespace WareHouseNJsound.Controllers
             return PartialView("_RecentTransTable", list);
         }
 
+        private async Task CreateNotiAndPushAsync(string employeeId, string title, string message, string link = null)
+        {
+            var noti = new Notification
+            {
+                Employee_ID = employeeId,
+                Title = title,
+                Message = message,
+                Link = link
+            };
+            _context.Notifications.Add(noti);
+            await _context.SaveChangesAsync();
 
+            // ส่ง real-time ไปหา user คนนั้น (ต้องตั้ง Claim NameIdentifier = Employee_ID)
+            await _hub.Clients.User(employeeId).SendAsync("notify", new
+            {
+                title,
+                message,
+                link,
+                createdAt = noti.CreatedAt
+            });
+        }
     }
 }
