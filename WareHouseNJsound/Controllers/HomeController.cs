@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 using WareHouseNJsound.Data;
 using WareHouseNJsound.Models;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using ClosedXML.Excel;
+using System.Text;
+using System.Data;
 
 namespace WareHouseNJsound.Controllers
 {
@@ -63,6 +66,107 @@ namespace WareHouseNJsound.Controllers
             return View(materials);
         }
 
+        public IActionResult Export(string category, string format = "csv")
+        {
+            // ใช้ query เดิม
+            var query = _context.materials
+                .AsNoTracking()
+                .Include(p => p.Stock)
+                .Include(p => p.Unit)
+                .Include(p => p.Category)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(category) && category.ToLower() != "all")
+            {
+                query = query.Where(p => p.Category.CategoryName == category);
+            }
+
+            // เลือกเฉพาะฟิลด์ที่จะ export (ไม่เอารูป)
+            var rows = query
+                .Select((p) => new
+                {
+                    Materials_ID = p.Materials_ID,
+                    MaterialsName = p.MaterialsName,
+                    Category = p.Category.CategoryName,
+                    Unit = p.Unit.UnitName,
+                    Stock = (int?)(p.Stock.OnHandStock) ?? 0,
+                    MinimumStock = p.MinimumStock,
+                    Price = p.Price ?? 0m,
+                    Remark = p.Description
+                })
+                .OrderBy(r => r.Materials_ID)
+                .ToList();
+
+            var fileName = $"materials_{(string.IsNullOrEmpty(category) ? "all" : category)}_{DateTime.Now:yyyyMMdd_HHmm}.";
+            format = (format ?? "csv").ToLowerInvariant();
+
+            if (format == "xlsx" || format == "excel")
+            {
+                // --- Excel (ClosedXML) ---
+                using var wb = new XLWorkbook();
+                var dt = new DataTable("Materials");
+
+                dt.Columns.Add("Materials ID", typeof(string));
+                dt.Columns.Add("Name", typeof(string));
+                dt.Columns.Add("Category", typeof(string));
+                dt.Columns.Add("Unit", typeof(string));
+                dt.Columns.Add("Stock", typeof(int));
+                dt.Columns.Add("MinimumStock", typeof(int));
+                dt.Columns.Add("Price", typeof(decimal));
+                dt.Columns.Add("Remark", typeof(string));
+
+                foreach (var r in rows)
+                {
+                    dt.Rows.Add(
+                        r.Materials_ID,
+                        r.MaterialsName,
+                        r.Category,
+                        r.Unit,
+                        r.Stock,
+                        r.MinimumStock,
+                        r.Price,
+                        r.Remark
+                    );
+                }
+
+                var ws = wb.Worksheets.Add(dt, "Export");
+                ws.Columns().AdjustToContents();
+
+                using var ms = new MemoryStream();
+                wb.SaveAs(ms);
+                return File(ms.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    fileName + "xlsx");
+            }
+            else
+            {
+                // --- CSV (UTF-8 BOM เพื่อให้ Excel เปิดภาษาไทยไม่เพี้ยน) ---
+                var sb = new StringBuilder();
+                void appendCsv(params object[] fields)
+                {
+                    static string Esc(object o)
+                    {
+                        if (o == null) return "";
+                        var s = o.ToString();
+                        // escape " , , \n
+                        if (s.Contains('"') || s.Contains(',') || s.Contains('\n') || s.Contains('\r'))
+                            s = $"\"{s.Replace("\"", "\"\"")}\"";
+                        return s;
+                    }
+                    sb.AppendLine(string.Join(",", fields.Select(Esc)));
+                }
+
+                appendCsv("Materials ID", "Name", "Category", "Unit", "Stock", "MinimumStock", "Price", "Remark");
+                foreach (var r in rows)
+                    appendCsv(r.Materials_ID, r.MaterialsName, r.Category, r.Unit, r.Stock, r.MinimumStock, r.Price, r.Remark);
+
+                // ใส่ BOM
+                var utf8Bom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+                var bytes = utf8Bom.GetBytes(sb.ToString());
+
+                return File(bytes, "text/csv", fileName + "csv");
+            }
+        }
 
         public IActionResult AddMaterial()
         {

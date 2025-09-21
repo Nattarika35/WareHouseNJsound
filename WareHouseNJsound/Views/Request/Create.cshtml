@@ -134,8 +134,7 @@
                         <th style="width:25%;">อะไหล่</th>
                         <th style="width:12%;">จำนวน</th>
                         <th style="width:12%;">หน่วย</th>
-                        @* <th style="width:22%;">งาน</th> *@
-                        @* <th style="width:16%;">เหตุผล</th> *@
+               
                         <th style="width:8%;"></th>
                     </tr>
                 </thead>
@@ -158,17 +157,25 @@
 
         <script id="tmpl-material-options" type="text/template">
             <option value="">-- เลือกอะไหล่ --</option>
-            @foreach (var m in (ViewBag.Materials ?? new List<WareHouseNJsound.Models.Materials>()))
+            @{
+                var mats = ViewBag.Materials as IEnumerable<MaterialOptionDto>
+                           ?? Enumerable.Empty<MaterialOptionDto>();
+            }
+            @foreach (var m in mats)
             {
                 <text>
-                    <option value="@m.Materials_ID"
-                            data-unitid="@(m.Unit_ID)"
-                            data-unitname="@m.Unit?.UnitName">
+                      <option value="@m.Materials_ID"
+                              data-unitid="@m.Unit_ID"
+                              data-unitname="@m.UnitName"
+                              data-stock="@m.StockLeft">
                         @m.MaterialsName
-                    </option>
+                      </option>
                 </text>
             }
+
         </script>
+
+
 
         <script>
             let rowCount = 0;
@@ -234,6 +241,8 @@
                 const unitName = opt ? (opt.getAttribute("data-unitname") || "-") : "-";
                 tr.querySelector(".unit-id").value = unitId || 0;
                 tr.querySelector(".unit-cell").textContent = unitName;
+
+                console.log('DEBUG data-stock =', opt?.getAttribute('data-stock'));
             });
 
             // เปลี่ยนงานด้านบน -> กระจาย Jobs_ID ทุกแถว
@@ -251,30 +260,95 @@
                 updateRowNumbers();
             });
 
+            function getStockFromOption(opt) {
+                if (!opt) return 0;
+                const n = Number(opt.getAttribute("data-stock") || 0);
+                return Number.isFinite(n) ? n : 0;
+            }
+
+
+            function collectTotalsAndStocks() {
+                const rows = document.querySelectorAll("#tableBody tr");
+                const total = new Map();    // Materials_ID -> sum qty
+                const stock = new Map();    // Materials_ID -> stock
+                const name = new Map();    // Materials_ID -> display name
+                const unit = new Map();    // Materials_ID -> unit
+
+                rows.forEach(tr => {
+                    const sel = tr.querySelector(".material-select");
+                    const qtyEl = tr.querySelector(".qty-input");
+                    if (!sel || !qtyEl) return;
+
+                    const id = sel.value?.toString() || "";
+                    if (!id) return;
+
+                    const qty = Number(qtyEl.value || 0);
+                    const opt = sel.selectedOptions[0];
+                    const stk = getStockFromOption(opt);
+
+                    total.set(id, (total.get(id) || 0) + (Number.isFinite(qty) ? qty : 0));
+                    stock.set(id, stk);
+                    if (!name.has(id)) {
+                        name.set(id, (opt?.textContent || "").trim());
+                        unit.set(id, opt?.getAttribute("data-unitname") || "");
+                    }
+                });
+
+                return { total, stock, name, unit };
+            }
+
+            function buildShortageHtml(list) {
+                let html = `<div class="table-responsive"><table class="table table-sm table-bordered">
+                  <thead><tr><th>รหัส</th><th>ชื่อ</th><th>ขอเบิก</th><th>คงเหลือ</th><th>หน่วย</th></tr></thead><tbody>`;
+                list.forEach(x => {
+                    html += `<tr>
+                    <td>${x.id}</td><td>${x.name}</td>
+                    <td>${x.req}</td><td>${x.stk}</td><td>${x.unit}</td>
+                  </tr>`;
+                });
+                html += `</tbody></table></div>`;
+                return html;
+            }
+
             // ✅ ยืนยันก่อนส่ง + ตรวจความครบถ้วน
             $("form").on("submit", function (e) {
                 e.preventDefault();
 
+                // (ของเดิม) ตรวจ required
                 let isValid = true;
                 $(".form-control").removeClass("is-invalid");
-
                 if (!$('#HeaderJobsId').val()) {
                     $('#HeaderJobsId').addClass('is-invalid');
                     isValid = false;
                 }
-
                 $(this).find("input[required], select[required], textarea[required]").each(function () {
-                    if (!$(this).val()) {
-                        $(this).addClass("is-invalid");
-                        isValid = false;
-                    }
+                    if (!$(this).val()) { $(this).addClass("is-invalid"); isValid = false; }
                 });
-
                 if (!isValid) {
                     Swal.fire({ icon: 'error', title: 'กรอกข้อมูลไม่ครบ', text: 'กรุณากรอกข้อมูลให้ครบทุกช่อง' });
                     return;
                 }
 
+                // 🔎 เช็คสต๊อก (ใหม่)
+                const { total, stock, name, unit } = collectTotalsAndStocks();
+                const shortages = [];
+                total.forEach((req, id) => {
+                    const stk = stock.get(id) ?? 0;
+                    if (req > stk) {
+                        shortages.push({ id, req, stk, name: name.get(id) || '-', unit: unit.get(id) || '-' });
+                    }
+                });
+                if (shortages.length > 0) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'สต๊อกไม่เพียงพอ',
+                        html: buildShortageHtml(shortages),
+                        confirmButtonText: 'ตกลง'
+                    });
+                    return; // ❌ หยุด ไม่ส่งฟอร์ม
+                }
+
+                // (ของเดิม) ยืนยันส่ง
                 Swal.fire({
                     title: 'ยืนยันส่งใบเบิก?',
                     text: 'ตรวจสอบความถูกต้องก่อนยืนยัน',
@@ -284,13 +358,26 @@
                     cancelButtonText: 'ยกเลิก'
                 }).then((res) => {
                     if (res.isConfirmed) {
-                        // กันพลาด: sync Jobs_ID อีกรอบก่อนส่ง
+                        // sync Jobs_ID อีกรอบ
                         const val = $('#HeaderJobsId').val() || '';
-                        document.querySelectorAll('#tableBody .jobs-id').forEach(input => input.value = val);
+                        document.querySelectorAll('#tableBody .jobs-id').forEach(i => i.value = val);
                         e.target.submit();
                     }
                 });
             });
+
+
+            (function () {
+                var html = '@Html.Raw(ViewBag.StockErrorsHtml ?? "")';
+                if (html && html.length > 0) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'สต๊อกไม่เพียงพอ',
+                        html: html,
+                        confirmButtonText: 'ตกลง'
+                    });
+                }
+            })();
         </script>
     }
 

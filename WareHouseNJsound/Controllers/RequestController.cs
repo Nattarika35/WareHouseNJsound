@@ -60,42 +60,51 @@ namespace WareHouseNJsound.Controllers
 
         public async Task<IActionResult> Create()
         {
-            var model = new RequestViewModel();
-            model.Request = new Request();
+            var model = new RequestViewModel
+            {
+                Request = new Request
+                {
+                    // ถ้าเซิร์ฟเวอร์เป็น UTC แนะนำใช้ DateTime.UtcNow แล้วค่อยแปลง timezone ฝั่งแสดงผล
+                    Request_Date = DateTime.Now
+                },
+                RequestDetails = new List<RequestDetail> { new RequestDetail() }
+            };
 
-            // วันที่ปัจจุบัน
-            model.Request.Request_Date = DateTime.Now;         
-
-            // ดึง Employee ทั้งหมดจาก DB
+            // พนักงาน (เฉพาะ Role 202)
             model.Employees = await _context.Employees
-                                            .Where(e => e.Role_ID == 202)
-                                            .AsNoTracking()
-                                            .OrderBy(e => e.Emp_Fname)
-                                            .ToListAsync();
+                .AsNoTracking()
+                .Where(e => e.Role_ID == 202)
+                .OrderBy(e => e.Emp_Fname)
+                .ToListAsync();
 
-            // ดึง Jobs
-            var jobs = await _context.Jobs
-                                     .AsNoTracking()
-                                     .OrderBy(j => j.JobsName)
-                                     .ToListAsync();
+            // งาน
+            ViewBag.Jobs = await _context.Jobs
+                .AsNoTracking()
+                .OrderBy(j => j.JobsName)
+                .ToListAsync();
 
-            ViewBag.Jobs = jobs;  //  โยนค่าไปที่ View
-
-            // ดึง Materials พร้อม Unit
-            var materials = _context.materials
-                        .Include(m => m.Unit)
-                        .ToList();
-            ViewBag.Materials = materials ?? new List<Materials>();
-            //  โยนไป View
-
-            // กัน null
-            model.RequestDetails = new List<RequestDetail>
+            // สร้าง options สำหรับ <option> เดียวจบ พร้อมหน่วย และคงเหลือ
+            // หมายเหตุ: ถ้าชื่อ DbSet เป็น _context.Materials (M ใหญ่) ให้แก้ให้ตรง
+            var options = await _context.materials
+    .AsNoTracking()
+    .Include(m => m.Unit)
+    .Select(m => new MaterialOptionDto
     {
-        new RequestDetail()
-    };
+        Materials_ID = m.Materials_ID,
+        MaterialsName = m.MaterialsName,
+        Unit_ID = m.Unit_ID,
+        UnitName = m.Unit != null ? m.Unit.UnitName : null,
+        StockLeft = _context.Stocks
+            .Where(s => s.Materials_ID == m.Materials_ID)
+            .Sum(s => (int?)s.OnHandStock) ?? 0
+    })
+    .OrderBy(x => x.MaterialsName)
+    .ToListAsync();
 
+            ViewBag.Materials = options; // หรือใส่ลงใน model.Property ก็ยิ่งดี
             return View(model);
         }
+
 
 
         [HttpPost]

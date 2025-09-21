@@ -82,6 +82,12 @@
         </div>
     </div>
 
+    <div class="d-flex gap-2 mb-3 justify-content-end">
+        <a class="btn btn-primary"
+           href="@Url.Action("Export","Home", new { category = selectedCategory, format = "xlsx" })">
+            <i class='bx bxs-file-doc'></i> Export Excel
+        </a>
+    </div>
 
     <table class="table" style="width: 100%; border-collapse: collapse;">
         <thead>
