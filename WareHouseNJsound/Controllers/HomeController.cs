@@ -69,11 +69,11 @@ namespace WareHouseNJsound.Controllers
 
         public IActionResult Export(string category, string format = "csv")
         {
-            // ใช้ query เดิม
             var query = _context.materials
                 .AsNoTracking()
                 .Include(p => p.Stock)
                 .Include(p => p.Unit)
+                .Include(p => p.Type)
                 .Include(p => p.Category)
                 .AsQueryable();
 
@@ -82,17 +82,20 @@ namespace WareHouseNJsound.Controllers
                 query = query.Where(p => p.Category.CategoryName == category);
             }
 
-            // เลือกเฉพาะฟิลด์ที่จะ export (ไม่เอารูป)
+            // 🔹 เลือกเฉพาะฟิลด์ที่ export
             var rows = query
-                .Select((p) => new
+                .Select(p => new
                 {
-                    Materials_ID = p.Materials_ID,
-                    MaterialsName = p.MaterialsName,
+                    p.Materials_ID,
+                    p.MaterialsName,
                     Category = p.Category.CategoryName,
+                    Type = p.Type.TypeName,
                     Unit = p.Unit.UnitName,
                     Stock = (int?)(p.Stock.OnHandStock) ?? 0,
-                    MinimumStock = p.MinimumStock,
+                    p.MinimumStock,
                     Price = p.Price ?? 0m,
+                    p.ReceivedDate,
+                    p.WarrantyExpiryDate,
                     Remark = p.Description
                 })
                 .OrderBy(r => r.Materials_ID)
@@ -101,19 +104,24 @@ namespace WareHouseNJsound.Controllers
             var fileName = $"materials_{(string.IsNullOrEmpty(category) ? "all" : category)}_{DateTime.Now:yyyyMMdd_HHmm}.";
             format = (format ?? "csv").ToLowerInvariant();
 
+            // =========================
+            // 📗 Excel (ClosedXML)
+            // =========================
             if (format == "xlsx" || format == "excel")
             {
-                // --- Excel (ClosedXML) ---
                 using var wb = new XLWorkbook();
                 var dt = new DataTable("Materials");
 
                 dt.Columns.Add("Materials ID", typeof(string));
                 dt.Columns.Add("Name", typeof(string));
                 dt.Columns.Add("Category", typeof(string));
+                dt.Columns.Add("Type", typeof(string));
                 dt.Columns.Add("Unit", typeof(string));
                 dt.Columns.Add("Stock", typeof(int));
-                dt.Columns.Add("MinimumStock", typeof(int));
+                dt.Columns.Add("Minimum Stock", typeof(int));
                 dt.Columns.Add("Price", typeof(decimal));
+                dt.Columns.Add("Received Date", typeof(string));
+                dt.Columns.Add("Warranty Expiry Date", typeof(string));
                 dt.Columns.Add("Remark", typeof(string));
 
                 foreach (var r in rows)
@@ -122,10 +130,13 @@ namespace WareHouseNJsound.Controllers
                         r.Materials_ID,
                         r.MaterialsName,
                         r.Category,
+                        r.Type,
                         r.Unit,
                         r.Stock,
                         r.MinimumStock,
                         r.Price,
+                        r.ReceivedDate.ToString("dd/MM/yyyy"),
+                        r.WarrantyExpiryDate.ToString("dd/MM/yyyy"),
                         r.Remark
                     );
                 }
@@ -135,38 +146,61 @@ namespace WareHouseNJsound.Controllers
 
                 using var ms = new MemoryStream();
                 wb.SaveAs(ms);
-                return File(ms.ToArray(),
+
+                return File(
+                    ms.ToArray(),
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    fileName + "xlsx");
+                    fileName + "xlsx"
+                );
             }
-            else
+
+            // =========================
+            // 📄 CSV (UTF-8 BOM)
+            // =========================
+            var sb = new StringBuilder();
+
+            void AppendCsv(params object[] fields)
             {
-                // --- CSV (UTF-8 BOM เพื่อให้ Excel เปิดภาษาไทยไม่เพี้ยน) ---
-                var sb = new StringBuilder();
-                void appendCsv(params object[] fields)
+                static string Esc(object o)
                 {
-                    static string Esc(object o)
-                    {
-                        if (o == null) return "";
-                        var s = o.ToString();
-                        // escape " , , \n
-                        if (s.Contains('"') || s.Contains(',') || s.Contains('\n') || s.Contains('\r'))
-                            s = $"\"{s.Replace("\"", "\"\"")}\"";
-                        return s;
-                    }
-                    sb.AppendLine(string.Join(",", fields.Select(Esc)));
+                    if (o == null) return "";
+                    var s = o.ToString();
+                    if (s.Contains('"') || s.Contains(',') || s.Contains('\n') || s.Contains('\r'))
+                        s = $"\"{s.Replace("\"", "\"\"")}\"";
+                    return s;
                 }
-
-                appendCsv("Materials ID", "Name", "Category", "Unit", "Stock", "MinimumStock", "Price", "Remark");
-                foreach (var r in rows)
-                    appendCsv(r.Materials_ID, r.MaterialsName, r.Category, r.Unit, r.Stock, r.MinimumStock, r.Price, r.Remark);
-
-                // ใส่ BOM
-                var utf8Bom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
-                var bytes = utf8Bom.GetBytes(sb.ToString());
-
-                return File(bytes, "text/csv", fileName + "csv");
+                sb.AppendLine(string.Join(",", fields.Select(Esc)));
             }
+
+            // Header
+            AppendCsv(
+                "Materials ID", "Name", "Category", "Type", "Unit",
+                "Stock", "Minimum Stock", "Price",
+                "Received Date", "Warranty Expiry Date", "Remark"
+            );
+
+            // Rows
+            foreach (var r in rows)
+            {
+                AppendCsv(
+                    r.Materials_ID,
+                    r.MaterialsName,
+                    r.Category,
+                    r.Type,
+                    r.Unit,
+                    r.Stock,
+                    r.MinimumStock,
+                    r.Price,
+                    r.ReceivedDate.ToString("dd/MM/yyyy"),
+                    r.WarrantyExpiryDate.ToString("dd/MM/yyyy"),
+                    r.Remark
+                );
+            }
+
+            var utf8Bom = new UTF8Encoding(true);
+            var bytes = utf8Bom.GetBytes(sb.ToString());
+
+            return File(bytes, "text/csv", fileName + "csv");
         }
 
         public IActionResult AddMaterial()
@@ -242,6 +276,8 @@ namespace WareHouseNJsound.Controllers
                 .Include(m => m.Stock)
                 .Include(m => m.Category)
                 .Include(m => m.Unit)
+                .Include(m => m.Type)
+
                 .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.Materials_ID == id);
 
@@ -252,6 +288,7 @@ namespace WareHouseNJsound.Controllers
 
             ViewBag.Categories = await _context.Categories.AsNoTracking().ToListAsync();
             ViewBag.Units = await _context.Units.AsNoTracking().ToListAsync();
+            ViewBag.Types = await _context.Types.AsNoTracking().ToListAsync();
 
             return View(material);
         }
@@ -269,6 +306,7 @@ namespace WareHouseNJsound.Controllers
             {
                 ViewBag.Categories = await _context.Categories.ToListAsync();
                 ViewBag.Units = await _context.Units.ToListAsync();
+                ViewBag.Types = await _context.Types.ToListAsync();
                 return View(input);
             }
 
@@ -281,9 +319,12 @@ namespace WareHouseNJsound.Controllers
             // อัปเดตข้อมูลพื้นฐาน
             mat.MaterialsName = input.MaterialsName;
             mat.Category_ID = input.Category_ID;
+            mat.Type_ID = input.Type_ID;
             mat.Unit_ID = input.Unit_ID;
             mat.MinimumStock = input.MinimumStock;
             mat.Price = input.Price;
+            mat.ReceivedDate = input.ReceivedDate;
+            mat.WarrantyExpiryDate = input.WarrantyExpiryDate;
             mat.Description = input.Description;
 
             // รูปภาพ

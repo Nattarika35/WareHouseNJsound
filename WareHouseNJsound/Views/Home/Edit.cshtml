@@ -74,6 +74,14 @@
             </div>
 
             <div class="mb-3">
+                <label asp-for="Type_ID" class="form-label fw-semibold text-start">ประเภท</label>
+                <select asp-for="Type_ID" class="form-select form-select-lg"
+                        asp-items="@(new SelectList(ViewBag.Types, "Type_ID", "TypeName"))" required>
+                    <option value="" disabled selected>-- เลือกประเภท --</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
                 <label asp-for="Unit_ID" class="form-label fw-semibold text-start">หน่วยนับ</label>
                 <select asp-for="Unit_ID" class="form-select form-select-lg"
                         asp-items="@(new SelectList(ViewBag.Units, "Unit_ID", "UnitName"))" required>
@@ -94,6 +102,26 @@
             <div class="mb-3">
                 <label asp-for="Price" class="form-label fw-semibold text-start">ราคา</label>
                 <input asp-for="Price" type="number" class="form-control form-control-lg" min="0" placeholder="กรอกราคาต่อหน่อย" required />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ReceivedDate" class="form-label fw-semibold text-start">
+                    วันที่รับเข้า
+                </label>
+                <input asp-for="ReceivedDate"
+                       type="date"
+                       class="form-control form-control-lg"
+                       required />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="WarrantyExpiryDate" class="form-label fw-semibold text-start">
+                    วันที่หมดประกัน
+                </label>
+                <input asp-for="WarrantyExpiryDate"
+                       type="date"
+                       class="form-control form-control-lg"
+                       required />
             </div>
 
             <div class="mb-3">
@@ -137,14 +165,32 @@
                 const categoryId = form.querySelector('[name="Category_ID"]').value;
                 const unitId = form.querySelector('[name="Unit_ID"]').value;
                 const minimumStock = form.querySelector('[name="MinimumStock"]').value;
+                const typeId = form.querySelector('[name="Type_ID"]').value;
+                const receivedDate = form.querySelector('[name="ReceivedDate"]').value;
+                const warrantyExpiryDate = form.querySelector('[name="WarrantyExpiryDate"]').value;
 
-                if (!materialsName || !categoryId || !unitId || !minimumStock) {
+                if (!materialsId || !materialsName || !categoryId || !typeId || !unitId || !minimumStock
+                    || !receivedDate || !warrantyExpiryDate) {
                     e.preventDefault();
 
                     Swal.fire({
                         icon: 'warning',
                         title: 'กรอกข้อมูลไม่ครบ!',
                         text: 'กรุณากรอกข้อมูลให้ครบถ้วนก่อนบันทึก',
+                        confirmButtonText: 'ตกลง'
+                    });
+
+                    return false;
+                }
+
+                //ตรวจสอบวันที่หมดประกันต้องมากกว่าวันรับเข้า
+                if (new Date(warrantyExpiryDate) < new Date(receivedDate)) {
+                    e.preventDefault();
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'วันที่ไม่ถูกต้อง',
+                        text: 'วันที่หมดประกันต้องมากกว่าวันที่รับเข้า',
                         confirmButtonText: 'ตกลง'
                     });
 

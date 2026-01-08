@@ -177,7 +177,122 @@ namespace WareHouseNJsound.Controllers
             return RedirectToAction("PendingRequets", "Request");
         }
 
+        public async Task<IActionResult> Create2()
+        {
+            var model = new RequestViewModel
+            {
+                Request = new Request
+                {
+                    // ถ้าเซิร์ฟเวอร์เป็น UTC แนะนำใช้ DateTime.UtcNow แล้วค่อยแปลง timezone ฝั่งแสดงผล
+                    Request_Date = DateTime.Now
+                },
+                RequestDetails = new List<RequestDetail> { new RequestDetail() }
+            };
 
+            // พนักงาน (เฉพาะ Role 202)
+            model.Employees = await _context.Employees
+                .AsNoTracking()
+                .Where(e => e.Role_ID == 202)
+                .OrderBy(e => e.Emp_Fname)
+                .ToListAsync();
+
+            // งาน
+            ViewBag.Jobs = await _context.Jobs
+                .AsNoTracking()
+                .OrderBy(j => j.JobsName)
+                .ToListAsync();
+
+            // สร้าง options สำหรับ <option> เดียวจบ พร้อมหน่วย และคงเหลือ
+            // หมายเหตุ: ถ้าชื่อ DbSet เป็น _context.Materials (M ใหญ่) ให้แก้ให้ตรง
+            var options = await _context.materials
+    .AsNoTracking()
+    .Include(m => m.Unit)
+    .Select(m => new MaterialOptionDto
+    {
+        Materials_ID = m.Materials_ID,
+        MaterialsName = m.MaterialsName,
+        Unit_ID = m.Unit_ID,
+        UnitName = m.Unit != null ? m.Unit.UnitName : null,
+        StockLeft = _context.Stocks
+            .Where(s => s.Materials_ID == m.Materials_ID)
+            .Sum(s => (int?)s.OnHandStock) ?? 0
+    })
+    .OrderBy(x => x.MaterialsName)
+    .ToListAsync();
+
+            ViewBag.Materials = options; // หรือใส่ลงใน model.Property ก็ยิ่งดี
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create2(RequestViewModel model)
+        {
+            model.Request ??= new Request();
+            model.RequestDetails ??= new List<RequestDetail>();
+
+            if (!ModelState.IsValid)
+            {
+                // โหลดข้อมูลกลับไป view เหมือนเดิม...
+                // (ข้ามรายละเอียดซ้ำ)
+                return View(model);
+            }
+
+            model.Request.Request_ID = Guid.NewGuid();
+            model.Request.Request_Date = DateTime.Now;
+            string guidPart = Guid.NewGuid().ToString("N").Substring(0, 2).ToUpper();
+            model.Request.RequestNumber = $"REQ-{DateTime.Now:yyyyMMdd}{guidPart}";
+            model.Request.Status_ID = 301;
+
+            _context.Requests.Add(model.Request);
+            await _context.SaveChangesAsync();
+
+            foreach (var detail in model.RequestDetails)
+            {
+                if (string.IsNullOrEmpty(detail.Materials_ID) || detail.Quantity <= 0)
+                    continue;
+
+                // Fallback: ถ้า Unit_ID == 0 ให้ดึงจากวัสดุ
+                if (detail.Unit_ID == 0)
+                {
+                    detail.Unit_ID = await _context.materials
+                        .Where(m => m.Materials_ID == detail.Materials_ID)
+                        .Select(m => m.Unit_ID)
+                        .FirstOrDefaultAsync();
+                }
+
+                detail.RequestDetail_ID = Guid.NewGuid();
+                detail.Request_ID = model.Request.Request_ID;
+                _context.RequestDetails.Add(detail);
+            }
+            // ลิงก์ไปหน้าอนุมัติ/ดูรายละเอียดคำขอ
+            var linkToEdit = Url.Action("Edit", "Request", new { requestId = model.Request.Request_ID });
+
+            // ดึงรายชื่อแอดมิน
+            var admins = await _context.Employees
+                .Where(e => e.Role_ID == 201) // 201 = Admin
+                .Select(e => e.Employee_ID)
+                .ToListAsync();
+
+            // สร้างแจ้งเตือนให้ทุกแอดมิน
+            foreach (var adminId in admins)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    Employee_ID = adminId,
+                    Title = "มีคำขอใหม่",
+                    Message = $"คำขอเลขที่ {model.Request.RequestNumber} รออนุมัติ",
+                    Link = linkToEdit
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+
+            // ✅ ใช้ TempData แล้ว Redirect ไปหน้ารออนุมัติ
+            TempData["SuccessMessage"] = "บันทึกใบเบิกสำเร็จ";
+            TempData["RequestNumber"] = model.Request.RequestNumber;
+            return RedirectToAction("PendingRequets", "Request");
+        }
 
         public async Task<string> CheckdataRequestIncontroller()
         {
@@ -340,7 +455,7 @@ namespace WareHouseNJsound.Controllers
                     await _context.SaveChangesAsync();
                     await tx.CommitAsync();
 
-             
+
                     var date = DateTime.Now;
                     var link = Url.Action("Details", "Edit", new { id = request.Request_ID }, Request.Scheme);
                     var title = "อัปเดตสถานะใบเบิก";
@@ -547,7 +662,7 @@ namespace WareHouseNJsound.Controllers
             return View(vm);
         }
 
-        
+
         [HttpGet]
         public async Task<IActionResult> ExportLowStocks(CancellationToken ct)
         {
@@ -566,7 +681,7 @@ namespace WareHouseNJsound.Controllers
                     UnitName = m.Unit != null ? m.Unit.UnitName : null,
                     OnHand = m.Stock != null ? (m.Stock.OnHandStock ?? 0) : 0,
                     MinimumStock = m.MinimumStock ?? 0,
-                  
+
                 })
                 .ToListAsync(ct);
 
@@ -583,7 +698,7 @@ namespace WareHouseNJsound.Controllers
             ws.Cell(1, 3).Value = "หน่วย";
             ws.Cell(1, 4).Value = "คงเหลือ";
             ws.Cell(1, 5).Value = "ขั้นต่ำ";
-          
+
             // จัดรูปแบบ
             ws.Columns().AdjustToContents();
             ws.Column(6).Style.NumberFormat.Format = "0.00";
@@ -605,14 +720,14 @@ namespace WareHouseNJsound.Controllers
                 fileDownloadName: fileName
             );
         }
-    
 
 
-    public async Task<IActionResult> TopMaterialsChart(
-            [Range(1, 50)] int top = 5,
-            DateTime? start = null,   // รับช่วงวันที่ (ไม่บังคับ)
-            DateTime? end = null
-        )
+
+        public async Task<IActionResult> TopMaterialsChart(
+                [Range(1, 50)] int top = 5,
+                DateTime? start = null,   // รับช่วงวันที่ (ไม่บังคับ)
+                DateTime? end = null
+            )
         {
             var q = _context.RequestDetails
                 .AsNoTracking()
@@ -705,7 +820,8 @@ namespace WareHouseNJsound.Controllers
                 .OrderBy(m => (m.Stock!.OnHandStock * 1.0) / m.MinimumStock)
                 .ThenBy(m => m.MaterialsName)
                 .Take(10)
-                .Select(m => new {
+                .Select(m => new
+                {
                     m.Materials_ID,
                     m.MaterialsName,
                     UnitName = m.Unit != null ? m.Unit.UnitName : null,
@@ -726,7 +842,8 @@ namespace WareHouseNJsound.Controllers
                 .Where(t => t.TranType_ID == type)
                 .OrderByDescending(t => t.Transaction_Date)
                 .Take(take)
-                .Join(_context.materials, t => t.Materials_ID, m => m.Materials_ID, (t, m) => new {
+                .Join(_context.materials, t => t.Materials_ID, m => m.Materials_ID, (t, m) => new
+                {
                     t.Transaction_Date,
                     t.Quantity,
                     t.RequestNumber,
