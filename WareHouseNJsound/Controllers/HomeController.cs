@@ -42,6 +42,7 @@ namespace WareHouseNJsound.Controllers
                 .Include(p => p.Stock)
                 .Include(p => p.Unit)
                 .Include(p => p.Category)
+                .Include(p => p.Type)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(category) && category.ToLower() != "all")
@@ -170,6 +171,7 @@ namespace WareHouseNJsound.Controllers
 
         public IActionResult AddMaterial()
         {
+            ViewBag.Types = _context.Types.ToList();
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.Units = _context.Units.ToList();
             return View();

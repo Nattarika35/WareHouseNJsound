@@ -13,6 +13,7 @@ namespace WareHouseNJsound.Data
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Materials> materials { get; set; }
         public DbSet<Category> Categories { get; set; }
+        public DbSet<Type> Types { get; set; }
         public DbSet<Unit> Units { get; set; }
         public DbSet<Request> Requests { get; set; }
         public DbSet<RequestDetail> RequestDetails { get; set; }
